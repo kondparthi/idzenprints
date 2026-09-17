@@ -1,0 +1,43 @@
+.reports-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  max-width: 700px;
+}
+
+.reports-filters .field {
+  margin-bottom: 0;
+}
+
+.reports-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.reports-breakdown-grid h2 {
+  font-size: 15px;
+  margin-bottom: var(--space-3);
+}
+
+.reports-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.reports-table td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.reports-table tr:last-child td {
+  border-bottom: none;
+}
+
+.reports-count {
+  text-align: right;
+  font-weight: 600;
+  color: var(--color-ink);
+}

@@ -1,0 +1,66 @@
+.products-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.products-filters {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.products-search {
+  flex: 1;
+  max-width: 320px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--color-panel);
+}
+
+.products-filters select {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--color-panel);
+}
+
+.products-name-link {
+  color: var(--color-ink);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.products-name-link:hover {
+  color: var(--color-accent);
+}
+
+.products-featured-badge {
+  margin-left: 8px;
+  font-size: 11px;
+}
+
+.products-type-cell {
+  text-transform: capitalize;
+}
+
+.products-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  font-size: 14px;
+}
+
+.subscription-login-id {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.subscription-status-select {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}

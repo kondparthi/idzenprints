@@ -1,0 +1,126 @@
+.dashboard-subtitle {
+  color: var(--color-muted);
+  font-size: 15px;
+  margin-top: -8px;
+  margin-bottom: var(--space-6);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.stat-tile {
+  padding: var(--space-4);
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--gradient-soft);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-3);
+}
+
+.stat-icon svg { width: 19px; height: 19px; }
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: var(--space-1);
+}
+
+.stat-label {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.section-heading {
+  font-size: 16px;
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-3);
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.quick-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line);
+  background: var(--color-panel);
+  color: var(--color-ink);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.quick-action svg { width: 17px; height: 17px; color: var(--color-accent); }
+
+.quick-action:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: transparent;
+}
+
+.quick-action-accent {
+  background: var(--gradient);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 10px 22px -12px rgba(63, 122, 18, 0.5);
+}
+
+.quick-action-accent svg { color: #fff; }
+
+.recent-orders-panel { padding: 0; overflow: hidden; }
+
+.recent-orders-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recent-orders-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px var(--space-5);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.recent-orders-list li:last-child { border-bottom: none; }
+
+.recent-orders-id {
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.recent-orders-meta {
+  color: var(--color-muted);
+  font-size: 13px;
+  margin-left: auto;
+}
+
+.empty-state {
+  padding: var(--space-5);
+  color: var(--color-muted);
+  margin: 0;
+}

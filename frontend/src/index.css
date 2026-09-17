@@ -1,0 +1,256 @@
+/*
+  Design tokens for the PVC Card Studio operator console — aligned to the
+  IDZEN brand: graphite-ink + warm paper base, one holographic gradient
+  (teal -> violet -> coral) reserved for primary actions, and a native
+  system-font stack (matches the marketing site, loads instantly, no
+  external font request).
+*/
+:root {
+  --color-ink: #171A23;
+  --color-ink-soft: #262A38;
+  --color-ink-line: rgba(255, 255, 255, 0.12);
+  --color-paper: #F1F0EA;
+  --color-paper-dim: #E6E3DA;
+  --color-panel: #FFFFFF;
+  --color-line: #DAD6C9;
+  --color-muted: #5C5F6B;
+
+  --color-accent: #2F6B12;
+  --color-accent-teal: #1F7A3D;
+  --color-accent-coral: #4C8C1D;
+  --color-accent-ink: #ffffff;
+  --gradient: linear-gradient(120deg, #1F3D0A 0%, #3F7A12 55%, #8FE22A 100%);
+  --gradient-soft: linear-gradient(120deg, rgba(31,61,10,0.14) 0%, rgba(63,122,18,0.14) 55%, rgba(143,226,42,0.14) 100%);
+
+  --color-success: #1F9D7C;
+  --color-success-soft: #E1F3EE;
+  --color-warning: #B3821F;
+  --color-warning-soft: #F6EEDD;
+  --color-danger: #E0475F;
+  --color-danger-soft: #FBE7EA;
+
+  --font-display: -apple-system, "SF Pro Display", "Segoe UI Variable", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-body: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --shadow-sm: 0 8px 20px -14px rgba(23, 26, 35, 0.35);
+  --shadow-md: 0 20px 40px -20px rgba(23, 26, 35, 0.3);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin: 0 0 var(--space-2);
+}
+
+a { color: inherit; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  padding: 10px 20px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--gradient);
+  background-size: 160% 160%;
+  color: var(--color-accent-ink);
+  box-shadow: 0 10px 22px -12px rgba(91, 79, 233, 0.55);
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px -12px rgba(91, 79, 233, 0.6);
+  background-position: 100% 0;
+}
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+.btn-secondary {
+  background: var(--color-panel);
+  border-color: var(--color-line);
+  color: var(--color-ink);
+}
+.btn-secondary:hover:not(:disabled) { border-color: var(--color-ink); }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.btn-danger:hover:not(:disabled) { background: #f6d3d8; }
+
+/* ---------- Forms ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.field input, .field textarea, .field select {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  background: var(--color-panel);
+  color: var(--color-ink);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.field input:focus, .field textarea:focus, .field select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(91, 79, 233, 0.15);
+}
+
+.field input:disabled, .field textarea:disabled { background: var(--color-paper-dim); color: var(--color-muted); }
+
+/* ---------- Surfaces ---------- */
+.card-panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.error-text {
+  color: var(--color-danger);
+  font-size: 13px;
+  margin-top: var(--space-1);
+}
+
+/* ---------- Status badges (orders, documents, templates, ...) ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-neutral { background: var(--color-paper-dim); color: var(--color-ink); }
+.badge-success { background: var(--color-success-soft); color: var(--color-success); }
+.badge-warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.badge-danger { background: var(--color-danger-soft); color: var(--color-danger); }
+.badge-accent { background: var(--gradient-soft); color: var(--color-accent); }
+
+/* ---------- Data tables (shared by Customers, Orders, Templates, ...) ---------- */
+.data-table-panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 13px var(--space-4);
+  background: var(--color-paper-dim);
+  border-bottom: 1px solid var(--color-line);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.data-table td {
+  padding: 14px var(--space-4);
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: middle;
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr { transition: background-color 120ms ease; }
+.data-table tbody tr:hover { background: var(--color-paper); }
+
+.data-table-empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-muted);
+}
+
+/* ---------- Avatar ---------- */
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--gradient);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.success-text {
+  color: var(--color-success);
+  font-size: 13px;
+  margin-top: var(--space-1);
+}

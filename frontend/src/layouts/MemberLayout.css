@@ -1,0 +1,23 @@
+.member-sidebar-services {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.member-sidebar-services-heading {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(236, 235, 230, 0.5);
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
+.member-sidebar-service-item {
+  display: block;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: rgba(236, 235, 230, 0.65);
+}
