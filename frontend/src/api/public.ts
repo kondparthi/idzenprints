@@ -6,6 +6,7 @@
  */
 import { memberApiClient } from "./memberClient";
 import type { MemberType, Package } from "@/types/subscription";
+import type { CardType } from "@/types/cardType";
 
 export async function listActiveMemberTypes(): Promise<MemberType[]> {
   const { data } = await memberApiClient.get<MemberType[]>("/public/member-types");
@@ -14,5 +15,10 @@ export async function listActiveMemberTypes(): Promise<MemberType[]> {
 
 export async function listAvailablePackages(memberTypeId: string): Promise<Package[]> {
   const { data } = await memberApiClient.get<Package[]>(`/public/packages/by-member-type/${memberTypeId}`);
+  return data;
+}
+
+export async function listActiveCardTypes(): Promise<CardType[]> {
+  const { data } = await memberApiClient.get<CardType[]>("/public/card-types");
   return data;
 }

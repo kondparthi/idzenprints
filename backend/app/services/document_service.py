@@ -97,11 +97,13 @@ class DocumentService:
             delete_stored_file(document.back_stored_path)
         self.repo.delete(document)
 
-    def process(self, document_id: str) -> CustomerDetails:
+    def process(self, document_id: str, password: str | None = None) -> CustomerDetails:
         """
         Runs OCR against the stored file(s) and upserts a CustomerDetails
         row with whatever fields were found. Always returns an editable
         record, even if OCR found nothing or the provider isn't installed.
+        `password` only matters for an encrypted PDF — every other file
+        type ignores it.
         """
         document = self.get(document_id)
         document.status = DocumentStatus.PROCESSING
@@ -110,10 +112,10 @@ class DocumentService:
 
         try:
             provider = get_ocr_provider()
-            front_result = provider.extract(str(resolve_stored_path(document.stored_path)))
+            front_result = provider.extract(str(resolve_stored_path(document.stored_path)), password=password)
             back_result = None
             if document.back_stored_path:
-                back_result = provider.extract(str(resolve_stored_path(document.back_stored_path)))
+                back_result = provider.extract(str(resolve_stored_path(document.back_stored_path)), password=password)
             result = _merge_ocr_results(front_result, back_result)
         except Exception as exc:  # noqa: BLE001 - any OCR failure must not crash the request
             document.status = DocumentStatus.FAILED

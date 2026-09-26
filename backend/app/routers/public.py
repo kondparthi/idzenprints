@@ -11,12 +11,24 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.schemas.card_type import CardTypeOut
 from app.schemas.member_type import MemberTypeOut
 from app.schemas.package import PackageOut
+from app.services.card_type_service import CardTypeService
 from app.services.member_type_service import MemberTypeService
 from app.services.package_service import PackageService
 
 router = APIRouter(prefix="/api/public", tags=["public"])
+
+
+@router.get("/card-types", response_model=list[CardTypeOut])
+def list_active_card_types(db: Session = Depends(get_db)):
+    """The catalog of generatable services (Aadhaar PVC, Employee ID,
+    etc.) — active only. Needed by the member wizard to resolve a
+    service's real id regardless of whether the member has a
+    subscription yet (the dashboard's own placeholder tiles for free
+    accounts use fake ids, since nothing there is real yet)."""
+    return CardTypeService(db).list_card_types(include_inactive=False)
 
 
 @router.get("/member-types", response_model=list[MemberTypeOut])

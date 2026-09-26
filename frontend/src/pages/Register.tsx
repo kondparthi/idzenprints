@@ -1,10 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerMember } from "@/api/memberAuth";
-import { listActiveMemberTypes, listAvailablePackages } from "@/api/public";
 import { setMemberToken } from "@/api/memberClient";
 import { useMemberAuth } from "@/auth/MemberAuthContext";
-import type { MemberType, Package } from "@/types/subscription";
 import "./Register.css";
 import idzenLogo from "@/assets/brand/idzen-logo.png";
 
@@ -17,13 +15,6 @@ export default function Register() {
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
 
-  const [memberTypes, setMemberTypes] = useState<MemberType[]>([]);
-  const [selectedMemberTypeId, setSelectedMemberTypeId] = useState("");
-
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [selectedPackageId, setSelectedPackageId] = useState("");
-  const [isLoadingPackages, setIsLoadingPackages] = useState(false);
-
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
 
@@ -31,40 +22,10 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null);
   const [registeredName, setRegisteredName] = useState<string | null>(null);
 
-  useEffect(() => {
-    listActiveMemberTypes().then(setMemberTypes);
-  }, []);
-
-  // The core "dynamic package display" requirement: re-fetch from the
-  // backend every time the member type changes, and clear any package
-  // that was selected under the old type — never just filter a
-  // client-side list, since the backend is the actual source of truth
-  // for which packages are allowed (and re-validates this again at
-  // submit time regardless).
-  useEffect(() => {
-    setSelectedPackageId("");
-    if (!selectedMemberTypeId) {
-      setPackages([]);
-      return;
-    }
-    setIsLoadingPackages(true);
-    listAvailablePackages(selectedMemberTypeId)
-      .then(setPackages)
-      .finally(() => setIsLoadingPackages(false));
-  }, [selectedMemberTypeId]);
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
 
-    if (!selectedMemberTypeId) {
-      setError("Select a member type.");
-      return;
-    }
-    if (!selectedPackageId) {
-      setError("Select a package.");
-      return;
-    }
     if (!agreeTerms || !agreePrivacy) {
       setError("You must agree to the Terms & Conditions and Privacy Policy.");
       return;
@@ -78,8 +39,6 @@ export default function Register() {
         email,
         login_id: loginId,
         password,
-        member_type_id: selectedMemberTypeId,
-        package_id: selectedPackageId,
         agree_terms: agreeTerms,
         agree_privacy: agreePrivacy,
       });
@@ -101,10 +60,7 @@ export default function Register() {
         <div className="register-success-card">
           <span className="register-success-icon">✓</span>
           <h1>Welcome, {registeredName}</h1>
-          <p>
-            Your account has been created. Your subscription is <strong>pending approval</strong> — a Super Admin
-            will review and activate it shortly. You can still view your dashboard in the meantime.
-          </p>
+          <p>Your account has been created — you're all set to start using IDZEN Prints.</p>
           <button className="btn btn-primary" onClick={() => navigate("/member/dashboard")}>
             Go to dashboard
           </button>
@@ -119,7 +75,7 @@ export default function Register() {
         <div className="register-header">
           <img src={idzenLogo} alt="IDZEN" className="register-logo-mark" />
           <h1>Create your account</h1>
-          <p>Register to start generating PVC cards with a subscription plan.</p>
+          <p>Registration is free — start generating PVC cards right away.</p>
         </div>
 
         <h2 className="register-section-heading">Personal information</h2>
@@ -154,49 +110,6 @@ export default function Register() {
             minLength={8}
           />
         </div>
-
-        <h2 className="register-section-heading">Select member type</h2>
-        <div className="register-member-type-grid">
-          {memberTypes.map((mt) => (
-            <button
-              type="button"
-              key={mt.id}
-              className={"register-member-type-chip" + (selectedMemberTypeId === mt.id ? " is-selected" : "")}
-              onClick={() => setSelectedMemberTypeId(mt.id)}
-            >
-              {mt.name}
-            </button>
-          ))}
-        </div>
-
-        {selectedMemberTypeId && (
-          <>
-            <h2 className="register-section-heading">Available packages</h2>
-            {isLoadingPackages ? (
-              <p className="empty-state">Loading packages…</p>
-            ) : packages.length === 0 ? (
-              <p className="empty-state">No packages are currently available for this member type.</p>
-            ) : (
-              <div className="register-package-grid">
-                {packages.map((pkg) => (
-                  <div key={pkg.id} className={"register-package-card" + (selectedPackageId === pkg.id ? " is-selected" : "")}>
-                    <h3>{pkg.name}</h3>
-                    <div className="register-package-price">₹{pkg.price}</div>
-                    <ul>
-                      <li>{pkg.credits} Credits</li>
-                      <li>{pkg.license_days} Day License</li>
-                      <li>{pkg.device_limit} Device{pkg.device_limit === 1 ? "" : "s"}</li>
-                      <li>{pkg.pdf_generation_limit} PDF Generations</li>
-                    </ul>
-                    <button type="button" className="btn btn-secondary" onClick={() => setSelectedPackageId(pkg.id)}>
-                      {selectedPackageId === pkg.id ? "Selected" : "Select"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
 
         <h2 className="register-section-heading">Terms</h2>
         <label className="register-checkbox">

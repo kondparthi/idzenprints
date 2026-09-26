@@ -1,0 +1,25 @@
+.section-placeholder {
+  max-width: 480px;
+  margin: var(--space-6) auto;
+  text-align: center;
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+
+.section-placeholder-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--gradient-soft);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+}
+
+.section-placeholder-icon svg { width: 28px; height: 28px; }
+.section-placeholder h1 { font-size: 1.3rem; margin-bottom: var(--space-3); }
+.section-placeholder p { color: var(--color-muted); font-size: 14px; margin-bottom: var(--space-4); }

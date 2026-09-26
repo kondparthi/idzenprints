@@ -25,7 +25,7 @@ import re
 
 from app.services.ocr.base import OCRExtractionResult
 
-_DOB_PATTERN = re.compile(r"(?:DOB|Date of Birth)\s*[:\-]?\s*([0-3]?\d[/\-][01]?\d[/\-]\d{2,4})", re.IGNORECASE)
+_DOB_PATTERN = re.compile(r"(?:D[O0]B|Date of Birth)\s*[:\-]?\s*([0-3]?\d[/\-][01]?\d[/\-]\d{2,4})", re.IGNORECASE)
 _GENDER_PATTERN = re.compile(r"\b(MALE|FEMALE|TRANSGENDER|OTHER)\b", re.IGNORECASE)
 _VID_PATTERN = re.compile(r"VID\s*[:\-]?\s*(\d{4}\s?\d{4}\s?\d{4}\s?\d{4})", re.IGNORECASE)
 _TWELVE_DIGIT_PATTERN = re.compile(r"\b(\d{4}\s\d{4}\s\d{4})\b")

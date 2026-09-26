@@ -29,6 +29,7 @@ class MemberType(Base, TimestampMixin):
     slug = Column(String(120), nullable=False, unique=True)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
+    is_default = Column(Boolean, nullable=False, default=False)
 
     card_types = relationship("CardType", secondary=member_type_services, backref="member_types")
 

@@ -40,10 +40,17 @@ class MemberTypeService:
 
     def create_member_type(self, data: MemberTypeCreate) -> MemberType:
         member_type = MemberType(
-            name=data.name, description=data.description, is_active=data.is_active, slug=self._unique_slug(data.name)
+            name=data.name,
+            description=data.description,
+            is_active=data.is_active,
+            is_default=data.is_default,
+            slug=self._unique_slug(data.name),
         )
         member_type.card_types = self.card_type_repo.get_by_ids(data.service_ids)
-        return self.repo.create(member_type)
+        created = self.repo.create(member_type)
+        if data.is_default:
+            self.repo.clear_default_flag(except_id=created.id)
+        return created
 
     def update_member_type(self, member_type_id: str, data: MemberTypeUpdate) -> MemberType:
         member_type = self.get_member_type(member_type_id)
@@ -54,6 +61,18 @@ class MemberTypeService:
             setattr(member_type, field, value)
         if data.service_ids is not None:
             member_type.card_types = self.card_type_repo.get_by_ids(data.service_ids)
+        saved = self.repo.save(member_type)
+        if payload.get("is_default"):
+            self.repo.clear_default_flag(except_id=saved.id)
+        return saved
+
+    def set_default(self, member_type_id: str) -> MemberType:
+        """Explicit action for the admin UI's 'Set as default' button —
+        marks this one and clears the flag from every other type in the
+        same call, so exactly one is ever default at a time."""
+        member_type = self.get_member_type(member_type_id)
+        self.repo.clear_default_flag(except_id=member_type_id)
+        member_type.is_default = True
         return self.repo.save(member_type)
 
     def delete_member_type(self, member_type_id: str) -> None:

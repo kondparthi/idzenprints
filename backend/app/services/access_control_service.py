@@ -184,7 +184,7 @@ class AccessControlService:
                     f"You have {remaining} PDF generation{'s' if remaining != 1 else ''} remaining.",
                 )
 
-            new_balance = subscription.credits_remaining - total_cost
+            new_balance = subscription.credits_remaining
 
             transaction = CreditTransaction(
                 subscription_id=subscription.id,

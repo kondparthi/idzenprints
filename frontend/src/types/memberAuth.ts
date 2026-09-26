@@ -6,8 +6,6 @@ export interface MemberRegisterInput {
   email: string;
   login_id: string;
   password: string;
-  member_type_id: string;
-  package_id: string;
   agree_terms: boolean;
   agree_privacy: boolean;
   device_id?: string;
@@ -26,7 +24,6 @@ export interface CurrentMember {
 
 export interface RegisterResponse {
   member: CurrentMember;
-  subscription_status: string;
   access_token: string;
   token_type: string;
 }

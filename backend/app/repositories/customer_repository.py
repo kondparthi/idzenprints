@@ -16,6 +16,9 @@ class CustomerRepository:
     def get_by_id(self, customer_id: str) -> Optional[Customer]:
         return self.db.query(Customer).filter(Customer.id == customer_id).first()
 
+    def get_by_owner_member_id(self, member_id: str) -> Optional[Customer]:
+        return self.db.query(Customer).filter(Customer.owner_member_id == member_id).first()
+
     def list(self, search: Optional[str], page: int, page_size: int) -> tuple[list[Customer], int]:
         query = self.db.query(Customer)
         if search:

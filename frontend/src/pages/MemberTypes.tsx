@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { createMemberType, deleteMemberType, listMemberTypes, updateMemberType } from "@/api/memberTypes";
+import { createMemberType, deleteMemberType, listMemberTypes, setDefaultMemberType, updateMemberType } from "@/api/memberTypes";
 import { listCardTypes } from "@/api/cardTypes";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { CardType } from "@/types/cardType";
@@ -13,6 +13,7 @@ export default function MemberTypes() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MemberType | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,18 +36,44 @@ export default function MemberTypes() {
     if (!name.trim()) return;
     setIsSubmitting(true);
     try {
-      await createMemberType({ name: name.trim(), description: description.trim() || undefined, service_ids: selectedServiceIds });
-      setName("");
-      setDescription("");
-      setSelectedServiceIds([]);
+      if (editingId) {
+        await updateMemberType(editingId, {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          service_ids: selectedServiceIds,
+        });
+      } else {
+        await createMemberType({ name: name.trim(), description: description.trim() || undefined, service_ids: selectedServiceIds });
+      }
+      resetForm();
       refresh();
     } finally {
       setIsSubmitting(false);
     }
   }
 
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setDescription("");
+    setSelectedServiceIds([]);
+  }
+
+  function startEdit(memberType: MemberType) {
+    setEditingId(memberType.id);
+    setName(memberType.name);
+    setDescription(memberType.description ?? "");
+    setSelectedServiceIds(memberType.services.map((s) => s.id));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function toggleActive(memberType: MemberType) {
     await updateMemberType(memberType.id, { is_active: !memberType.is_active });
+    refresh();
+  }
+
+  async function handleSetDefault(memberType: MemberType) {
+    await setDefaultMemberType(memberType.id);
     refresh();
   }
 
@@ -70,9 +97,14 @@ export default function MemberTypes() {
   return (
     <div>
       <h1>Member types</h1>
-      <p className="dashboard-subtitle">Meeseva, Internet Cafe, Individual, Company — who your subscribers are.</p>
+      <p className="dashboard-subtitle">
+        Meeseva, Internet Cafe, Individual, Company — who your subscribers are. Registration is free and open, so
+        whichever type is marked <strong>Default</strong> below gets assigned automatically — visitors are never
+        shown this list at sign-up.
+      </p>
 
       <form className="card-panel card-type-form" onSubmit={handleCreate}>
+        <h2 style={{ marginTop: 0 }}>{editingId ? "Edit member type" : "Add a member type"}</h2>
         <div className="field-row">
           <div className="field">
             <label htmlFor="mtName">Name</label>
@@ -97,8 +129,13 @@ export default function MemberTypes() {
         </div>
 
         <button className="btn btn-primary" type="submit" disabled={isSubmitting}>
-          Add member type
+          {editingId ? "Save changes" : "Add member type"}
         </button>
+        {editingId && (
+          <button type="button" className="btn btn-secondary" style={{ marginLeft: 8 }} onClick={resetForm}>
+            Cancel
+          </button>
+        )}
       </form>
 
       {error && <p className="error-text">{error}</p>}
@@ -110,6 +147,7 @@ export default function MemberTypes() {
               <th>Name</th>
               <th>Services</th>
               <th>Status</th>
+              <th>Default</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -119,7 +157,19 @@ export default function MemberTypes() {
                 <td>{mt.name}</td>
                 <td>{mt.services.length ? mt.services.map((s) => s.name).join(", ") : "—"}</td>
                 <td>{mt.is_active ? "Active" : "Inactive"}</td>
+                <td>
+                  {mt.is_default ? (
+                    <span className="badge badge-success">Default</span>
+                  ) : (
+                    <button className="link-action" onClick={() => handleSetDefault(mt)} disabled={!mt.is_active}>
+                      Set as default
+                    </button>
+                  )}
+                </td>
                 <td className="customers-row-actions">
+                  <button className="link-action" onClick={() => startEdit(mt)}>
+                    Edit
+                  </button>
                   <button className="link-action" onClick={() => toggleActive(mt)}>
                     {mt.is_active ? "Deactivate" : "Activate"}
                   </button>

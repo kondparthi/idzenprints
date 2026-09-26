@@ -19,3 +19,10 @@ class DocumentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DocumentProcessRequest(BaseModel):
+    """Only needed for a password-protected PDF — every other file type
+    ignores this entirely."""
+
+    password: Optional[str] = None

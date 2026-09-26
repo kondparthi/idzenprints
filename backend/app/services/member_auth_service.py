@@ -14,14 +14,11 @@ import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models.credit_transaction import CreditTransaction, CreditTransactionType
 from app.models.member import Member
 from app.models.member_session import MemberSession, SessionStatus
-from app.models.subscription import Subscription, SubscriptionStatus
 from app.repositories.member_repository import MemberRepository
 from app.repositories.member_session_repository import MemberSessionRepository
 from app.repositories.member_type_repository import MemberTypeRepository
-from app.repositories.package_repository import PackageRepository
 from app.repositories.subscription_repository import SubscriptionRepository
 from app.schemas.member_auth import MemberRegisterRequest
 from app.utils.security import create_access_token, hash_password, verify_password
@@ -39,18 +36,10 @@ class DuplicatePhoneError(Exception):
     pass
 
 
-class InvalidMemberTypeError(Exception):
-    pass
-
-
-class InvalidPackageError(Exception):
-    pass
-
-
-class PackageNotAvailableForMemberTypeError(Exception):
-    """Raised when the frontend sends a package_id/member_type_id pair
-    that isn't actually linked — the whole point of section 14/26 of the
-    spec: never trust the frontend's filtering, re-check it here."""
+class NoDefaultMemberTypeError(Exception):
+    """Raised when free/open registration has no member type to assign —
+    Super Admin needs to create at least one active member type and mark
+    it default before anyone can register."""
 
 
 class MemberAuthError(Exception):
@@ -66,9 +55,17 @@ class MemberAuthService:
         self.db = db
         self.member_repo = MemberRepository(db)
         self.member_type_repo = MemberTypeRepository(db)
-        self.package_repo = PackageRepository(db)
 
-    def register(self, data: MemberRegisterRequest) -> tuple[Member, Subscription]:
+    def register(self, data: MemberRegisterRequest) -> Member:
+        """Free, open registration — no member type or package selection
+        shown to the visitor. A member type still gets assigned behind
+        the scenes (existing access-control logic elsewhere depends on
+        every member having one), but it's resolved automatically from
+        whichever type Super Admin has marked default, not chosen by the
+        registrant. No Subscription is created here at all — the account
+        starts with no plan, and can pick one later from the dashboard;
+        the dashboard already handles a member having no subscription
+        yet (see get_dashboard's Optional return)."""
         if self.member_repo.get_by_login_id(data.login_id):
             raise DuplicateLoginIdError(data.login_id)
         if self.member_repo.get_by_email(data.email):
@@ -76,18 +73,9 @@ class MemberAuthService:
         if self.member_repo.get_by_phone(data.phone):
             raise DuplicatePhoneError(data.phone)
 
-        member_type = self.member_type_repo.get_by_id(data.member_type_id)
-        if not member_type or not member_type.is_active:
-            raise InvalidMemberTypeError(data.member_type_id)
-
-        package = self.package_repo.get_by_id(data.package_id)
-        if not package or not package.is_active:
-            raise InvalidPackageError(data.package_id)
-        # The check the spec repeatedly stresses: the frontend already
-        # filtered this, but that's a convenience, not a security
-        # boundary — verify the relationship actually exists server-side.
-        if member_type.id not in {mt.id for mt in package.member_types}:
-            raise PackageNotAvailableForMemberTypeError((data.package_id, data.member_type_id))
+        default_member_type = self.member_type_repo.get_default()
+        if not default_member_type:
+            raise NoDefaultMemberTypeError()
 
         member = Member(
             full_name=data.full_name,
@@ -95,57 +83,18 @@ class MemberAuthService:
             email=data.email,
             login_id=data.login_id,
             password_hash=hash_password(data.password),
-            member_type_id=member_type.id,
+            member_type_id=default_member_type.id,
             terms_accepted_at=datetime.datetime.now(datetime.timezone.utc),
         )
 
-        today = datetime.date.today()
-        subscription = Subscription(
-            member=member,
-            package_id=package.id,
-            member_type_id=member_type.id,
-            start_date=today,
-            expiry_date=today + datetime.timedelta(days=package.license_days),
-            credits_allocated=package.credits,
-            credits_remaining=package.credits,
-            pdf_limit=package.pdf_generation_limit,
-            pdf_used=0,
-            status=SubscriptionStatus.PENDING_APPROVAL,
-        )
-
-        # Member and Subscription are created together, in one
-        # transaction — a member account with no subscription (or vice
-        # versa) would be a broken half-state, so either both commit or
-        # neither does.
         try:
             self.db.add(member)
-            self.db.add(subscription)
-            self.db.flush()  # assigns subscription.id, needed by the ledger entry below
-
-            # The initial grant must appear in the ledger too — otherwise
-            # a member's credit history would start "in the middle" with
-            # no record of where their starting balance came from, which
-            # is exactly what section 8's own example ledger shows as the
-            # very first line ("Package Purchase +150").
-            initial_grant = CreditTransaction(
-                subscription_id=subscription.id,
-                transaction_type=CreditTransactionType.CREDIT,
-                amount=package.credits,
-                balance_after=package.credits,
-                reference_type="registration",
-                reference_id=subscription.id,
-                description=f"Initial grant — {package.name} package",
-                created_by=None,
-            )
-            self.db.add(initial_grant)
-
             self.db.commit()
         except Exception:
             self.db.rollback()
             raise
         self.db.refresh(member)
-        self.db.refresh(subscription)
-        return member, subscription
+        return member
 
     def authenticate(self, login_id: str, password: str) -> Member:
         member = self.member_repo.get_by_login_id(login_id)

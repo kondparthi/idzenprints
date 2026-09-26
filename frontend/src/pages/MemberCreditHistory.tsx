@@ -7,12 +7,23 @@ export default function MemberCreditHistory() {
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [usage, setUsage] = useState<PdfUsageRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([fetchOwnCreditHistory(), fetchOwnPdfUsageHistory()])
       .then(([txns, u]) => {
         setTransactions(txns);
         setUsage(u);
+      })
+      .catch((err: any) => {
+        // A 404 here just means "no subscription yet" — a free account
+        // with nothing to show, not a failure. Anything else is a real
+        // error and should say so, rather than silently looking
+        // identical to "no data" (the empty-array initial state would
+        // otherwise mask a genuine failure as if nothing were wrong).
+        if (err?.response?.status !== 404) {
+          setError("Couldn't load your credit history right now.");
+        }
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -24,6 +35,7 @@ export default function MemberCreditHistory() {
   }
 
   if (isLoading) return <p className="empty-state">Loading…</p>;
+  if (error) return <p className="error-text">{error}</p>;
 
   return (
     <div>

@@ -16,9 +16,12 @@ import MemberLayout from "@/layouts/MemberLayout";
 import MemberDashboard from "@/pages/MemberDashboard";
 import MemberSubscription from "@/pages/MemberSubscription";
 import MemberProfile from "@/pages/MemberProfile";
+import MemberSectionPlaceholder from "@/pages/MemberSectionPlaceholder";
+import MemberAadhaarPvc from "@/pages/MemberAadhaarPvc";
 import MemberCreditHistory from "@/pages/MemberCreditHistory";
 import Dashboard from "@/pages/Dashboard";
 import Customers from "@/pages/Customers";
+import Members from "@/pages/Members";
 import CustomerForm from "@/pages/CustomerForm";
 import DocumentUpload from "@/pages/DocumentUpload";
 import DocumentDetail from "@/pages/DocumentDetail";
@@ -60,6 +63,8 @@ export default function App() {
           <Route path="/member/dashboard" element={<MemberDashboard />} />
           <Route path="/member/subscription" element={<MemberSubscription />} />
           <Route path="/member/profile" element={<MemberProfile />} />
+          <Route path="/member/section/:slug" element={<MemberSectionPlaceholder />} />
+          <Route path="/member/cards/aadhaar-pvc" element={<MemberAadhaarPvc />} />
           <Route path="/member/credit-history" element={<MemberCreditHistory />} />
         </Route>
       </Route>
@@ -69,6 +74,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/customers" element={<Customers />} />
+          <Route path="/members" element={<Members />} />
           <Route path="/customers/new" element={<CustomerForm />} />
           <Route path="/customers/:id" element={<CustomerForm />} />
           <Route path="/documents/upload" element={<DocumentUpload />} />

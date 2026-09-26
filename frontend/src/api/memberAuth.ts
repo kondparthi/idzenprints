@@ -54,3 +54,7 @@ export async function consumeService(cardTypeId: string, quantity = 1): Promise<
   });
   return data;
 }
+
+export async function requestSubscription(packageId: string): Promise<void> {
+  await memberApiClient.post("/auth/member/subscription-request", { package_id: packageId });
+}

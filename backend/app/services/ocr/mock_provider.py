@@ -7,5 +7,5 @@ from app.services.ocr.base import OCRExtractionResult, OCRProvider
 
 
 class MockOCRProvider(OCRProvider):
-    def extract(self, file_path: str) -> OCRExtractionResult:
+    def extract(self, file_path: str, password: str | None = None) -> OCRExtractionResult:
         return OCRExtractionResult(raw_text="")

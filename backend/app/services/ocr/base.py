@@ -23,6 +23,8 @@ class OCRExtractionResult:
 
 class OCRProvider(ABC):
     @abstractmethod
-    def extract(self, file_path: str) -> OCRExtractionResult:
-        """Run OCR on the file at file_path and return whatever fields it can find."""
+    def extract(self, file_path: str, password: Optional[str] = None) -> OCRExtractionResult:
+        """Run OCR on the file at file_path and return whatever fields it can
+        find. `password` is only meaningful for a password-protected PDF —
+        every other provider/file type ignores it."""
         raise NotImplementedError

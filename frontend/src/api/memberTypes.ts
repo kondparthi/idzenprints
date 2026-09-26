@@ -19,3 +19,8 @@ export async function updateMemberType(id: string, input: Partial<MemberTypeInpu
 export async function deleteMemberType(id: string): Promise<void> {
   await apiClient.delete(`/member-types/${id}`);
 }
+
+export async function setDefaultMemberType(id: string): Promise<MemberType> {
+  const { data } = await apiClient.post<MemberType>(`/member-types/${id}/set-default`);
+  return data;
+}

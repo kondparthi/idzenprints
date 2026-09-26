@@ -20,17 +20,21 @@ from app.schemas.member_auth import (
 )
 from app.services.access_control_service import AccessControlService, AccessDeniedError
 from app.repositories.subscription_repository import SubscriptionRepository
-from app.services.subscription_service import SubscriptionService
+from app.schemas.subscription import MemberSubscriptionRequest, SubscriptionOut
+from app.services.subscription_service import (
+    ActiveSubscriptionExistsError,
+    InvalidPackageError,
+    PackageNotAvailableForMemberError,
+    SubscriptionService,
+)
 from app.services.member_auth_service import (
     DeviceLimitReachedError,
     DuplicateEmailError,
     DuplicateLoginIdError,
     DuplicatePhoneError,
-    InvalidMemberTypeError,
-    InvalidPackageError,
     MemberAuthError,
     MemberAuthService,
-    PackageNotAvailableForMemberTypeError,
+    NoDefaultMemberTypeError,
 )
 
 router = APIRouter(prefix="/api/auth/member", tags=["member-auth"])
@@ -40,20 +44,16 @@ router = APIRouter(prefix="/api/auth/member", tags=["member-auth"])
 def register(payload: MemberRegisterRequest, request: Request, db: Session = Depends(get_db)):
     service = MemberAuthService(db)
     try:
-        member, subscription = service.register(payload)
+        member = service.register(payload)
     except DuplicateLoginIdError as exc:
         raise HTTPException(status_code=409, detail="That User ID is already taken") from exc
     except DuplicateEmailError as exc:
         raise HTTPException(status_code=409, detail="That email is already registered") from exc
     except DuplicatePhoneError as exc:
         raise HTTPException(status_code=409, detail="That phone number is already registered") from exc
-    except InvalidMemberTypeError as exc:
-        raise HTTPException(status_code=400, detail="Select a valid member type") from exc
-    except InvalidPackageError as exc:
-        raise HTTPException(status_code=400, detail="Select a valid package") from exc
-    except PackageNotAvailableForMemberTypeError as exc:
+    except NoDefaultMemberTypeError as exc:
         raise HTTPException(
-            status_code=400, detail="That package isn't available for the selected member type"
+            status_code=503, detail="Registration isn't available right now — please try again shortly"
         ) from exc
 
     # A brand-new member has no prior sessions, so this always succeeds —
@@ -68,7 +68,7 @@ def register(payload: MemberRegisterRequest, request: Request, db: Session = Dep
     )
 
     token = service.issue_token(member, payload.device_id)
-    return RegisterResponse(member=member, subscription_status=subscription.status.value, access_token=token)
+    return RegisterResponse(member=member, access_token=token)
 
 
 @router.post("/login", response_model=MemberTokenResponse)
@@ -156,3 +156,25 @@ def credit_history(current_member: Member = Depends(get_current_member), db: Ses
 def pdf_usage_history(current_member: Member = Depends(get_current_member), db: Session = Depends(get_db)):
     subscription_id = _get_own_subscription_id(current_member, db)
     return SubscriptionService(db).list_pdf_usage(subscription_id)
+
+
+@router.post("/subscription-request", response_model=SubscriptionOut, status_code=status.HTTP_201_CREATED)
+def request_subscription(
+    payload: MemberSubscriptionRequest,
+    current_member: Member = Depends(get_current_member),
+    db: Session = Depends(get_db),
+):
+    """A free member requesting a plan for themselves — always starts
+    pending_approval no matter what, and the member is always the
+    caller (from the auth token), never something the client picks."""
+    try:
+        subscription = SubscriptionService(db).create_subscription(current_member.id, payload.package_id)
+    except InvalidPackageError as exc:
+        raise HTTPException(status_code=400, detail="Select a valid, active package") from exc
+    except PackageNotAvailableForMemberError as exc:
+        raise HTTPException(status_code=400, detail="That package isn't available for your member type") from exc
+    except ActiveSubscriptionExistsError as exc:
+        raise HTTPException(
+            status_code=409, detail="You already have an active or pending subscription"
+        ) from exc
+    return subscription

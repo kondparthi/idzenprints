@@ -82,3 +82,250 @@
 .member-toast.is-error {
   background: var(--color-danger);
 }
+
+/* Wallet-style stat cards */
+.member-status-banner-info {
+  background: rgba(63, 122, 18, 0.1);
+  color: var(--color-accent);
+}
+
+.wallet-card-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.wallet-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.wallet-card-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.wallet-card-credits .wallet-card-icon { background: var(--gradient); }
+.wallet-card-pdf .wallet-card-icon { background: linear-gradient(135deg, #1F6FA8, #4FA8D8); }
+.wallet-card-license .wallet-card-icon { background: linear-gradient(135deg, #8A5A1F, #D69A3E); }
+.wallet-card-services .wallet-card-icon { background: linear-gradient(135deg, #5B3A8A, #9163C9); }
+
+.wallet-card-value {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.wallet-card-label { font-size: 13px; font-weight: 600; color: var(--color-ink); }
+.wallet-card-sub { font-size: 11px; color: var(--color-muted); }
+
+/* Promo banners */
+.promo-banner-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.promo-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  color: #fff;
+}
+
+.promo-banner-primary { background: var(--gradient); }
+.promo-banner-secondary { background: linear-gradient(135deg, #2b2f38, #454b58); }
+
+.promo-banner-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.promo-banner h3 { font-size: 0.95rem; margin: 0 0 2px; }
+.promo-banner p { font-size: 12px; opacity: 0.9; margin: 0; }
+.promo-banner-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: var(--color-ink) !important;
+  white-space: nowrap;
+}
+
+/* Service icon-tile grid */
+/* Tinted quick-access panel wrapping the service grid */
+.quick-access-panel {
+  background: linear-gradient(135deg, rgba(63, 122, 18, 0.06), rgba(143, 226, 42, 0.06));
+  border: 1px solid rgba(63, 122, 18, 0.15);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-4) var(--space-5);
+}
+
+.quick-access-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-access-panel-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.quick-access-panel-icon { font-size: 1rem; }
+
+.quick-access-panel-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: var(--color-panel);
+  border: 1px solid rgba(63, 122, 18, 0.25);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+}
+
+.service-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--space-3);
+}
+
+.service-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-2);
+  cursor: pointer;
+  transition: box-shadow 140ms ease, transform 140ms ease;
+  font-family: inherit;
+}
+
+.service-tile:hover:not(:disabled) { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.service-tile:disabled { opacity: 0.7; cursor: default; }
+
+/* Rounded-square icon frame with a colored ring border, matching the
+   reference's app-icon-style badges — not a plain flat circle. */
+.service-tile-icon-frame {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  border: 2.5px solid;
+  background: var(--color-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 6px rgba(23, 26, 35, 0.08);
+}
+
+.service-tile-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.service-tile-icon svg { width: 18px; height: 18px; }
+
+.service-tile-count-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #E23B3B;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-panel);
+}
+
+.service-tile-name { font-size: 12.5px; font-weight: 700; text-align: center; line-height: 1.25; }
+.service-tile-tag { font-size: 10.5px; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.02em; }
+
+.service-tile-status {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+}
+
+.service-tile-status.is-active { background: var(--gradient); color: #fff; }
+.service-tile-status.is-locked { background: var(--color-paper); color: var(--color-muted); border: 1px solid var(--color-line); }
+.service-tile-locked { background: var(--color-paper); }
+
+/* Plan browser — shown when a free member has no subscription yet */
+.plan-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.plan-card { text-align: center; }
+
+.plan-card-price {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin: 4px 0 var(--space-3);
+}
+
+.plan-card-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-4);
+  text-align: left;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.plan-card-features li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.plan-card-features li:last-child { border-bottom: none; }

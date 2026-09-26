@@ -34,15 +34,16 @@ class Settings(BaseSettings):
     # locations the app already checks automatically — see
     # app/services/ocr/tesseract_provider.py.
     TESSERACT_CMD: str = ""
-    # Tesseract language pack(s) to use, e.g. "eng+tel" for English + Telugu.
-    # IMPORTANT: every language listed here must actually be installed
-    # (the Telugu pack is a separate download from the Tesseract binary
-    # itself — see the README's OCR setup section) or Tesseract errors on
-    # the *entire* request, not just the missing language. The app falls
-    # back to "eng" automatically if a requested language pack is missing,
-    # so this is safe to experiment with, but installing the pack is what
-    # actually gets you regional-script extraction.
-    OCR_LANGUAGES: str = "eng+tel"
+    # Tesseract language pack(s) to use, e.g. "eng+tel+hin" for English +
+    # Telugu + Hindi. IMPORTANT: every language listed here must actually
+    # be installed (each regional pack is a separate download from the
+    # Tesseract binary itself — see the README's OCR setup section) or
+    # Tesseract errors on the *entire* request, not just the missing
+    # language. The app falls back to "eng" automatically if a requested
+    # language pack is missing, so this is safe to experiment with, but
+    # installing the pack is what actually gets you regional-script
+    # extraction.
+    OCR_LANGUAGES: str = "eng+tel+hin"
 
     # CORS - comma separated list of allowed origins
     CORS_ORIGINS: str = "http://localhost:5173"

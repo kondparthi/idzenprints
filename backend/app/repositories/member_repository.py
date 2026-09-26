@@ -15,6 +15,9 @@ class MemberRepository:
     def get_by_id(self, member_id: str) -> Optional[Member]:
         return self._base_query().filter(Member.id == member_id).first()
 
+    def list_all(self) -> list[Member]:
+        return self._base_query().order_by(Member.created_at.desc()).all()
+
     def get_by_login_id(self, login_id: str) -> Optional[Member]:
         return self.db.query(Member).filter(Member.login_id == login_id).first()
 

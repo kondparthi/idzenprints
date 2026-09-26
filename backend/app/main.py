@@ -16,8 +16,10 @@ from app.routers import (
     documents,
     guest_orders,
     member_auth,
+    member_cards,
     member_sessions,
     member_types,
+    members,
     orders,
     packages,
     product_categories,
@@ -57,9 +59,11 @@ app.include_router(brands.router)
 app.include_router(tags.router)
 app.include_router(products.router)
 app.include_router(member_types.router)
+app.include_router(members.router)
 app.include_router(packages.router)
 app.include_router(subscriptions.router)
 app.include_router(member_auth.router)
+app.include_router(member_cards.router)
 app.include_router(public.router)
 app.include_router(storefront.router)
 app.include_router(guest_orders.router)

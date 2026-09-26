@@ -21,3 +21,120 @@
   font-size: 13px;
   color: rgba(236, 235, 230, 0.65);
 }
+
+.member-nav-section {
+  margin-bottom: var(--space-4);
+}
+
+.member-nav-section-heading {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(236, 235, 230, 0.45);
+  padding: 10px 12px 6px;
+}
+
+.member-nav-badge {
+  margin-left: auto;
+  background: var(--gradient);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+/* Topbar: marquee + action icons + wallet chip + user block */
+.member-topbar {
+  gap: var(--space-4);
+}
+
+.member-topbar-marquee {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.member-topbar-marquee-track {
+  display: inline-block;
+  padding-left: 100%;
+  color: var(--color-accent);
+  font-weight: 700;
+  font-size: 13px;
+  animation: member-marquee 22s linear infinite;
+}
+
+@keyframes member-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+.member-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.member-topbar-icon-btn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel);
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.member-topbar-icon-btn svg { width: 17px; height: 17px; }
+
+.member-topbar-search-btn {
+  background: var(--gradient);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(63, 122, 18, 0.12);
+}
+
+.member-topbar-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #E23B3B;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-panel);
+}
+
+.member-topbar-wallet-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--gradient-soft);
+  color: var(--color-accent);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+}
+
+.member-topbar-wallet-chip svg { width: 16px; height: 16px; }
+
+@media (max-width: 900px) {
+  .member-topbar-marquee { display: none; }
+}

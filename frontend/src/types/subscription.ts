@@ -6,6 +6,7 @@ export interface MemberType {
   slug: string;
   description: string | null;
   is_active: boolean;
+  is_default: boolean;
   services: CardType[];
 }
 
@@ -13,6 +14,7 @@ export interface MemberTypeInput {
   name: string;
   description?: string;
   is_active?: boolean;
+  is_default?: boolean;
   service_ids?: string[];
 }
 

@@ -6,9 +6,13 @@ from app.middleware.auth_middleware import get_current_user
 from app.models.subscription import SubscriptionStatus
 from app.models.user import User
 from app.schemas.credit_transaction import CreditAdjustmentRequest, CreditTransactionOut, PdfUsageOut
-from app.schemas.subscription import SubscriptionOut, SubscriptionStatusUpdate
+from app.schemas.subscription import SubscriptionCreateRequest, SubscriptionOut, SubscriptionStatusUpdate
 from app.services.subscription_service import (
+    ActiveSubscriptionExistsError,
     InvalidAdjustmentError,
+    InvalidPackageError,
+    MemberNotFoundError,
+    PackageNotAvailableForMemberError,
     SubscriptionNotFoundError,
     SubscriptionService,
 )
@@ -20,6 +24,28 @@ router = APIRouter(prefix="/api/subscriptions", tags=["subscriptions"], dependen
 @router.get("", response_model=list[SubscriptionOut])
 def list_subscriptions(status: SubscriptionStatus | None = Query(default=None), db: Session = Depends(get_db)):
     return SubscriptionService(db).list_subscriptions(status)
+
+
+@router.post("", response_model=SubscriptionOut, status_code=status.HTTP_201_CREATED)
+def create_subscription(
+    payload: SubscriptionCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    try:
+        subscription = SubscriptionService(db).create_subscription(
+            payload.member_id, payload.package_id, payload.status
+        )
+    except MemberNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Member not found") from exc
+    except InvalidPackageError as exc:
+        raise HTTPException(status_code=400, detail="Select a valid, active package") from exc
+    except PackageNotAvailableForMemberError as exc:
+        raise HTTPException(status_code=400, detail="That package isn't available for this member's type") from exc
+    except ActiveSubscriptionExistsError as exc:
+        raise HTTPException(
+            status_code=409, detail="This member already has an active or pending subscription"
+        ) from exc
+    record_audit(db, current_user.id, "create", "subscription", subscription.id)
+    return subscription
 
 
 @router.get("/{subscription_id}", response_model=SubscriptionOut)

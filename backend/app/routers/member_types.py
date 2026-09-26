@@ -48,6 +48,18 @@ def update_member_type(
     return member_type
 
 
+@router.post("/{member_type_id}/set-default", response_model=MemberTypeOut)
+def set_default_member_type(
+    member_type_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    try:
+        member_type = MemberTypeService(db).set_default(member_type_id)
+    except MemberTypeNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Member type not found") from exc
+    record_audit(db, current_user.id, "set_default", "member_type", member_type_id)
+    return member_type
+
+
 @router.delete("/{member_type_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_member_type(
     member_type_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)

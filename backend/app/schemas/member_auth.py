@@ -14,8 +14,6 @@ class MemberRegisterRequest(BaseModel):
     email: EmailStr
     login_id: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8, max_length=128)
-    member_type_id: str
-    package_id: str
     agree_terms: bool
     agree_privacy: bool
     device_id: str
@@ -77,7 +75,6 @@ class CurrentMemberResponse(BaseModel):
 
 class RegisterResponse(BaseModel):
     member: CurrentMemberResponse
-    subscription_status: str
     access_token: str
     token_type: str = "bearer"
 

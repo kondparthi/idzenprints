@@ -10,3 +10,16 @@ export async function setSubscriptionStatus(id: string, status: SubscriptionStat
   const { data } = await apiClient.put<Subscription>(`/subscriptions/${id}/status`, { status });
   return data;
 }
+
+export async function createSubscription(
+  memberId: string,
+  packageId: string,
+  status: SubscriptionStatus = "pending_approval"
+): Promise<Subscription> {
+  const { data } = await apiClient.post<Subscription>("/subscriptions", {
+    member_id: memberId,
+    package_id: packageId,
+    status,
+  });
+  return data;
+}
