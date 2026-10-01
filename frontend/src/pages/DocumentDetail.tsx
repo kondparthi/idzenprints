@@ -92,6 +92,8 @@ export default function DocumentDetail() {
         address_local: details.address_local ?? undefined,
         document_number: details.document_number ?? undefined,
         vid_number: details.vid_number ?? undefined,
+        issue_date: details.issue_date ?? undefined,
+        details_as_on: details.details_as_on ?? undefined,
         is_verified: markVerified,
       });
       setDetails(updated);
@@ -231,6 +233,26 @@ export default function DocumentDetail() {
                   id="vidNumber"
                   value={details.vid_number ?? ""}
                   onChange={(e) => setDetails({ ...details, vid_number: e.target.value })}
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="issueDate">Aadhaar no. issued</label>
+                <input
+                  id="issueDate"
+                  placeholder="DD/MM/YYYY"
+                  value={details.issue_date ?? ""}
+                  onChange={(e) => setDetails({ ...details, issue_date: e.target.value })}
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="detailsAsOn">Details as on</label>
+                <input
+                  id="detailsAsOn"
+                  placeholder="DD/MM/YYYY"
+                  value={details.details_as_on ?? ""}
+                  onChange={(e) => setDetails({ ...details, details_as_on: e.target.value })}
                 />
               </div>
 
