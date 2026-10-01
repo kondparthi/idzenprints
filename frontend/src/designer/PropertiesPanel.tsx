@@ -111,6 +111,7 @@ export default function PropertiesPanel({
               <option value="Georgia">Georgia</option>
               <option value="Courier New">Courier New</option>
               <option value="Verdana">Verdana</option>
+              <option value="'Noto Sans Telugu', Arial">Noto Sans Telugu</option>
             </select>
           </div>
 
