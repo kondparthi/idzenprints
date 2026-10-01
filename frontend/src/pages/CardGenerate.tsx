@@ -199,13 +199,16 @@ export default function CardGenerate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewUrl, customerId, templateId, extractedDetails]);
 
-  /** Builds the field_image_overrides payload from whichever boxes are
-   * currently locked — sent to both preview (so a re-render matches
-   * exactly) and generate (so it's what actually gets printed). */
-  function buildOverrides(): FieldImageOverrides | undefined {
-    if (lockedBoxes.size === 0) return undefined;
+  /** Builds the field_image_overrides payload from a set of locked box
+   * keys (defaults to the current lockedBoxes state) — sent to both
+   * preview (so what's on screen is pixel-identical to what prints) and
+   * generate. Takes an explicit set so a just-added lock can be included
+   * immediately, without waiting on React to re-render with the new
+   * lockedBoxes state first. */
+  function buildOverrides(lockedKeys: Set<string> = lockedBoxes): FieldImageOverrides | undefined {
+    if (lockedKeys.size === 0) return undefined;
     const overrides: FieldImageOverrides = {};
-    for (const key of lockedBoxes) {
+    for (const key of lockedKeys) {
       const [side, elementId] = key.split(":");
       const image = boxImages[key];
       if (!image) continue;
@@ -213,6 +216,21 @@ export default function CardGenerate() {
       overrides[side][elementId] = image;
     }
     return overrides;
+  }
+
+  /** The single place that actually fetches and sets the preview images —
+   * always server-rendered with whatever overrides are passed in, so the
+   * screen never shows a locked box twice (once baked server-side, once
+   * drawn again client-side): there is exactly one rendered source. */
+  async function fetchAndSetPreview(overrides?: FieldImageOverrides) {
+    const selected = templates.find((t) => t.id === templateId);
+    const hasBack = selected ? templateHasBackSide(selected) : false;
+    const [url, backUrl] = await Promise.all([
+      previewCard(customerId, templateId, "front", overrides),
+      hasBack ? previewCard(customerId, templateId, "back", overrides) : Promise.resolve(null),
+    ]);
+    setPreviewUrl(url);
+    setBackPreviewUrl(backUrl);
   }
 
   async function handlePreview() {
@@ -223,21 +241,7 @@ export default function CardGenerate() {
     setError(null);
     setIsPreviewing(true);
     try {
-      const selected = templates.find((t) => t.id === templateId);
-      const hasBack = selected ? templateHasBackSide(selected) : false;
-      // Deliberately NOT passing overrides here: a locked box is already
-      // drawn on top of this preview as its own <img> overlay (see the
-      // JSX below), positioned exactly over the box. Baking the same
-      // override into the base preview too would draw that box's content
-      // twice — once from the server composite, once from the overlay —
-      // which is exactly the double/overlapping text this used to cause.
-      // Overrides still apply for real at generation time (handleGenerate).
-      const [url, backUrl] = await Promise.all([
-        previewCard(customerId, templateId, "front"),
-        hasBack ? previewCard(customerId, templateId, "back") : Promise.resolve(null),
-      ]);
-      setPreviewUrl(url);
-      setBackPreviewUrl(backUrl);
+      await fetchAndSetPreview(buildOverrides());
     } catch {
       setError("Couldn't render a preview. Make sure the customer has verified details.");
     } finally {
@@ -263,7 +267,7 @@ export default function CardGenerate() {
   }
 
   function handleDropOnSide(side: Side) {
-    return (e: DragEvent<HTMLDivElement>) => {
+    return async (e: DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       const key = e.dataTransfer.getData("text/plain") || dragBoxKey;
       setDragBoxKey(null);
@@ -285,7 +289,21 @@ export default function CardGenerate() {
       const box = boxList.find((b) => b.elementId === elementId);
       const ok = box ? isPointInBoxes([box], xMm, yMm) : false;
       if (ok) {
-        setLockedBoxes((prev) => new Set(prev).add(key));
+        const nextLocked = new Set(lockedBoxes).add(key);
+        setLockedBoxes(nextLocked);
+        // Re-render the preview right away with this box's snapshot now
+        // baked in server-side — the only way to show the locked result
+        // without a second, separately-positioned copy drawn on top of
+        // the first (that mismatch was the source of the ghosted/doubled
+        // text seen earlier).
+        setIsPreviewing(true);
+        try {
+          await fetchAndSetPreview(buildOverrides(nextLocked));
+        } catch {
+          setError("Locked, but couldn't refresh the preview — click Preview to refresh it manually.");
+        } finally {
+          setIsPreviewing(false);
+        }
       }
       setDropFlash({ key, ok, side });
       window.setTimeout(() => setDropFlash(null), 1400);
@@ -647,23 +665,6 @@ export default function CardGenerate() {
                     alt="Card preview — front"
                     className="card-preview-image"
                   />
-                  {selectedTemplate &&
-                    frontBoxes
-                      .filter((b) => lockedBoxes.has(boxKey("front", b.elementId)))
-                      .map((b) => (
-                        <img
-                          key={b.elementId}
-                          src={boxImages[boxKey("front", b.elementId)]}
-                          alt=""
-                          className="card-preview-locked-image"
-                          style={{
-                            left: `${(b.x / selectedTemplate.width_mm) * 100}%`,
-                            top: `${(b.y / selectedTemplate.height_mm) * 100}%`,
-                            width: `${(b.width / selectedTemplate.width_mm) * 100}%`,
-                            height: `${(b.height / selectedTemplate.height_mm) * 100}%`,
-                          }}
-                        />
-                      ))}
                   {dragBoxKey &&
                     selectedTemplate &&
                     dragBoxKey.startsWith("front:") &&
@@ -707,23 +708,6 @@ export default function CardGenerate() {
                       alt="Card preview — back"
                       className="card-preview-image"
                     />
-                    {selectedTemplate &&
-                      backBoxes
-                        .filter((b) => lockedBoxes.has(boxKey("back", b.elementId)))
-                        .map((b) => (
-                          <img
-                            key={b.elementId}
-                            src={boxImages[boxKey("back", b.elementId)]}
-                            alt=""
-                            className="card-preview-locked-image"
-                            style={{
-                              left: `${(b.x / selectedTemplate.width_mm) * 100}%`,
-                              top: `${(b.y / selectedTemplate.height_mm) * 100}%`,
-                              width: `${(b.width / selectedTemplate.width_mm) * 100}%`,
-                              height: `${(b.height / selectedTemplate.height_mm) * 100}%`,
-                            }}
-                          />
-                        ))}
                     {dragBoxKey &&
                       selectedTemplate &&
                       dragBoxKey.startsWith("back:") &&
