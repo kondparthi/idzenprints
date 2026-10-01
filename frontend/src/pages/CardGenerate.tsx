@@ -65,7 +65,6 @@ export default function CardGenerate() {
   // and come back. This edits the text itself — separate from drag-to-verify,
   // which only checks where a field lands, never what it says.
   const [editingKey, setEditingKey] = useState<keyof CustomerDetails | null>(null);
-  const [editingSide, setEditingSide] = useState<"front" | "back" | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
@@ -208,15 +207,13 @@ export default function CardGenerate() {
     };
   }
 
-  function startEditingField(field: keyof CustomerDetails, side: "front" | "back" | null = null) {
+  function startEditingField(field: keyof CustomerDetails) {
     setEditingKey(field);
-    setEditingSide(side);
     setEditValue((extractedDetails?.[field] as string | null) ?? "");
   }
 
   function cancelEditingField() {
     setEditingKey(null);
-    setEditingSide(null);
     setEditValue("");
   }
 
@@ -237,7 +234,6 @@ export default function CardGenerate() {
         return next;
       });
       setEditingKey(null);
-      setEditingSide(null);
       setEditValue("");
       if (previewUrl) {
         await handlePreview();
@@ -268,71 +264,6 @@ export default function CardGenerate() {
 
   function customerName(): string {
     return customers.find((c) => c.id === customerId)?.name ?? "card";
-  }
-
-  // Click-to-edit directly on the card: an invisible hotspot over wherever a
-  // field actually renders, so staff can fix text (type or paste Telugu
-  // straight in) right where they see it's wrong, instead of hunting for the
-  // matching row in the Extracted details list below.
-  function renderFieldHotspots(side: "front" | "back") {
-    if (!selectedTemplate) return null;
-    const boxesByField = side === "front" ? frontBoxesByField : backBoxesByField;
-    return DETAIL_FIELDS.filter((f) => (boxesByField[f.key]?.length ?? 0) > 0).flatMap((field) =>
-      boxesByField[field.key].map((b, i) => (
-        <div
-          key={`${field.key}-${i}`}
-          className="card-preview-hotspot"
-          title={`Click to edit ${field.label}`}
-          onClick={() => startEditingField(field.key, side)}
-          style={{
-            left: `${(b.x / selectedTemplate.width_mm) * 100}%`,
-            top: `${(b.y / selectedTemplate.height_mm) * 100}%`,
-            width: `${(b.width / selectedTemplate.width_mm) * 100}%`,
-            height: `${(b.height / selectedTemplate.height_mm) * 100}%`,
-          }}
-        />
-      ))
-    );
-  }
-
-  function renderEditPopover(side: "front" | "back") {
-    if (!editingKey || editingSide !== side || !selectedTemplate) return null;
-    const boxesByField = side === "front" ? frontBoxesByField : backBoxesByField;
-    const box = boxesByField[editingKey]?.[0];
-    if (!box) return null;
-
-    const field = DETAIL_FIELDS.find((f) => f.key === editingKey);
-    const isMultiline = editingKey === "address" || editingKey === "address_local";
-    const topPct = (box.y / selectedTemplate.height_mm) * 100;
-    const leftPct = Math.min((box.x / selectedTemplate.width_mm) * 100, 60);
-    const openBelow = topPct < 55;
-
-    return (
-      <div
-        className={"card-preview-popover " + (openBelow ? "card-preview-popover-below" : "card-preview-popover-above")}
-        style={{ left: `${leftPct}%`, top: `${topPct}%` }}
-      >
-        <div className="card-preview-popover-label">{field?.label}</div>
-        {isMultiline ? (
-          <textarea rows={3} autoFocus value={editValue} onChange={(e) => setEditValue(e.target.value)} />
-        ) : (
-          <input type="text" autoFocus value={editValue} onChange={(e) => setEditValue(e.target.value)} />
-        )}
-        <div className="detail-edit-actions">
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={cancelEditingField}
-            disabled={isSavingEdit}
-          >
-            Cancel
-          </button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={saveEditingField} disabled={isSavingEdit}>
-            {isSavingEdit ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -588,8 +519,6 @@ export default function CardGenerate() {
                       ))}
                     </div>
                   )}
-                  {!dragKey && <div className="card-preview-hotspots">{renderFieldHotspots("front")}</div>}
-                  {renderEditPopover("front")}
                 </div>
                 {dropFlash && dropFlash.side === "front" && (
                   <p className={"drop-flash " + (dropFlash.ok ? "drop-flash-ok" : "drop-flash-fail")}>
@@ -629,8 +558,6 @@ export default function CardGenerate() {
                         ))}
                       </div>
                     )}
-                    {!dragKey && <div className="card-preview-hotspots">{renderFieldHotspots("back")}</div>}
-                    {renderEditPopover("back")}
                   </div>
                   {dropFlash && dropFlash.side === "back" && (
                     <p className={"drop-flash " + (dropFlash.ok ? "drop-flash-ok" : "drop-flash-fail")}>
