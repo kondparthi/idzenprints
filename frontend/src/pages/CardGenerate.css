@@ -31,6 +31,24 @@
   align-items: center;
   justify-content: center;
   min-height: 360px;
+  /* The left column (form, extracted details, confirm-card-content list)
+     can run much taller than the card preview — sticky keeps the preview
+     in view while that scrolls past, instead of it scrolling out of sight
+     above. overflow-y + max-height is a safety net for when the preview
+     itself (front + back stacked) is taller than the viewport: it scrolls
+     internally rather than getting clipped. */
+  position: sticky;
+  top: var(--space-5);
+  max-height: calc(100vh - 2 * var(--space-5));
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .card-preview-panel {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
 }
 
 .card-preview-sides {
