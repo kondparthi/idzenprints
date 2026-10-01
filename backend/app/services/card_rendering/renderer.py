@@ -40,6 +40,14 @@ def _decode_data_uri_image(data_uri: str) -> Optional[Image.Image]:
         return None
 
 
+def decode_data_uri_image(data_uri: str) -> Optional[Image.Image]:
+    """Public wrapper — used by the card generation service to decode a
+    "confirmed box" snapshot image (a data: URI the browser produced from
+    one of our own /cards/box-image renders) sent back by the client as a
+    field_image_overrides entry."""
+    return _decode_data_uri_image(data_uri)
+
+
 def _load_image_element(element: dict[str, Any], customer_photo_path: Optional[Path]) -> Optional[Image.Image]:
     image_path = element.get("imagePath")
     if image_path and image_path.startswith("data:"):
@@ -173,6 +181,39 @@ def _render_barcode_element(element: dict[str, Any], box_w: int, box_h: int, dat
         return None
 
 
+def render_element_layer(
+    element: dict[str, Any],
+    box_w: int,
+    box_h: int,
+    dpi: int,
+    data: dict[str, str],
+    customer_photo_path: Optional[Path] = None,
+) -> Optional[Image.Image]:
+    """Renders one template element in isolation, to a box_w x box_h RGBA
+    layer — the same per-element logic render_template() uses for every
+    element on the card, factored out so a single box can also be
+    rendered on its own (see CardGenerationService.render_box_image),
+    e.g. for a "confirm this field" drag-and-drop thumbnail."""
+    element_type = element.get("type")
+    if element_type == "text":
+        return _render_text_element(element, box_w, box_h, dpi, data)
+    if element_type in ("image", "photo", "logo"):
+        source = _load_image_element(element, customer_photo_path)
+        if source is not None:
+            return _fit_image(source, box_w, box_h, element.get("objectFit", "cover"))
+        return None
+    if element_type == "qrcode":
+        return _render_qr_element(element, box_w, box_h, data)
+    if element_type == "barcode":
+        return _render_barcode_element(element, box_w, box_h, data)
+    if element_type == "rectangle":
+        layer = Image.new("RGBA", (box_w, box_h), element.get("fill", "#ffffff"))
+        draw = ImageDraw.Draw(layer)
+        draw.rectangle([0, 0, box_w - 1, box_h - 1], outline=element.get("stroke", "#000000"), width=1)
+        return layer
+    return None
+
+
 def render_template(
     width_mm: float,
     height_mm: float,
@@ -181,7 +222,14 @@ def render_template(
     data: dict[str, str],
     background_image: Optional[Image.Image] = None,
     customer_photo_path: Optional[Path] = None,
+    field_image_overrides: Optional[dict[str, Image.Image]] = None,
 ) -> Image.Image:
+    """field_image_overrides maps a template element's `id` to a pre-
+    rendered image that should be pasted in place of normally rendering
+    that element — the "drag the confirmed snapshot onto the card" QC
+    workflow: staff edit + save a field, the server renders exactly that
+    box once, and once they drag it onto the matching spot the same image
+    (not a fresh text render) is what ends up on the printed card too."""
     canvas_w = mm_to_px(width_mm, dpi)
     canvas_h = mm_to_px(height_mm, dpi)
     canvas = Image.new("RGBA", (canvas_w, canvas_h), (255, 255, 255, 255))
@@ -190,29 +238,20 @@ def render_template(
         fitted_bg = _fit_image(background_image.convert("RGBA"), canvas_w, canvas_h, "cover")
         canvas.paste(fitted_bg, (0, 0), fitted_bg)
 
+    overrides = field_image_overrides or {}
+
     for element in sorted(elements, key=lambda e: e.get("zIndex", 0)):
         box_x = mm_to_px(float(element.get("x", 0)), dpi)
         box_y = mm_to_px(float(element.get("y", 0)), dpi)
         box_w = max(1, mm_to_px(float(element.get("width", 1)), dpi))
         box_h = max(1, mm_to_px(float(element.get("height", 1)), dpi))
         rotation = float(element.get("rotation", 0))
-        element_type = element.get("type")
 
-        layer: Optional[Image.Image] = None
-        if element_type == "text":
-            layer = _render_text_element(element, box_w, box_h, dpi, data)
-        elif element_type in ("image", "photo", "logo"):
-            source = _load_image_element(element, customer_photo_path)
-            if source is not None:
-                layer = _fit_image(source, box_w, box_h, element.get("objectFit", "cover"))
-        elif element_type == "qrcode":
-            layer = _render_qr_element(element, box_w, box_h, data)
-        elif element_type == "barcode":
-            layer = _render_barcode_element(element, box_w, box_h, data)
-        elif element_type == "rectangle":
-            layer = Image.new("RGBA", (box_w, box_h), element.get("fill", "#ffffff"))
-            draw = ImageDraw.Draw(layer)
-            draw.rectangle([0, 0, box_w - 1, box_h - 1], outline=element.get("stroke", "#000000"), width=1)
+        override_image = overrides.get(element.get("id"))
+        if override_image is not None:
+            layer: Optional[Image.Image] = override_image.convert("RGBA").resize((box_w, box_h), Image.LANCZOS)
+        else:
+            layer = render_element_layer(element, box_w, box_h, dpi, data, customer_photo_path)
 
         if layer is None:
             continue

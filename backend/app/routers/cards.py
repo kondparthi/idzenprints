@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.middleware.auth_middleware import get_current_user
 from app.models.user import User
-from app.schemas.generated_card import GenerateCardRequest, GeneratedCardOut
+from app.schemas.generated_card import BoxImageRequest, GenerateCardRequest, GeneratedCardOut
 from app.services.card_generation_service import (
     CardGenerationService,
     CustomerNotFoundError,
+    ElementNotFoundError,
     GeneratedCardNotFoundError,
     TemplateNotFoundError,
 )
@@ -33,9 +34,26 @@ def _resolve_generated_path(relative_path: str) -> Path:
 def preview_card(payload: GenerateCardRequest, side: str = Query(default="front"), db: Session = Depends(get_db)):
     service = CardGenerationService(db)
     try:
-        png_bytes = service.preview_png_bytes(payload.customer_id, payload.template_id, side=side)
+        png_bytes = service.preview_png_bytes(
+            payload.customer_id, payload.template_id, side=side, field_image_overrides=payload.field_image_overrides
+        )
     except (CustomerNotFoundError, TemplateNotFoundError) as exc:
         raise HTTPException(status_code=404, detail="Customer or template not found") from exc
+    return Response(content=png_bytes, media_type="image/png")
+
+
+@router.post("/box-image")
+def box_image(payload: BoxImageRequest, db: Session = Depends(get_db)):
+    """Renders one template element's current content on its own — the
+    thumbnail staff drag onto the card preview to confirm (and, once
+    dropped, lock in) exactly what that box will print."""
+    service = CardGenerationService(db)
+    try:
+        png_bytes = service.render_box_image(payload.customer_id, payload.template_id, payload.side, payload.element_id)
+    except (CustomerNotFoundError, TemplateNotFoundError) as exc:
+        raise HTTPException(status_code=404, detail="Customer or template not found") from exc
+    except ElementNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="That element isn't on this side of the template") from exc
     return Response(content=png_bytes, media_type="image/png")
 
 
@@ -47,7 +65,13 @@ def generate_card(
 ):
     service = CardGenerationService(db)
     try:
-        card = service.generate(payload.customer_id, payload.template_id, created_by=current_user.id, order_id=payload.order_id)
+        card = service.generate(
+            payload.customer_id,
+            payload.template_id,
+            created_by=current_user.id,
+            order_id=payload.order_id,
+            field_image_overrides=payload.field_image_overrides,
+        )
     except (CustomerNotFoundError, TemplateNotFoundError) as exc:
         raise HTTPException(status_code=404, detail="Customer or template not found") from exc
     record_audit(db, current_user.id, "generate", "generated_card", card.id, {"customer_id": payload.customer_id, "template_id": payload.template_id})

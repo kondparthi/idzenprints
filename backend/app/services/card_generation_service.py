@@ -20,10 +20,13 @@ from app.repositories.customer_repository import CustomerRepository
 from app.repositories.generated_card_repository import GeneratedCardRepository
 from app.repositories.template_repository import TemplateRepository
 from app.services.card_rendering.data_resolver import resolve_card_variables
-from app.services.card_rendering.renderer import render_template
+from app.services.card_rendering.renderer import decode_data_uri_image, mm_to_px, render_element_layer, render_template
 from app.utils.file_storage import resolve_stored_path
 
 settings = get_settings()
+
+# Keyed by side ("front"/"back") -> template element id -> data: URI PNG.
+FieldImageOverrides = dict[str, dict[str, str]]
 
 
 class CustomerNotFoundError(Exception):
@@ -35,6 +38,10 @@ class TemplateNotFoundError(Exception):
 
 
 class GeneratedCardNotFoundError(Exception):
+    pass
+
+
+class ElementNotFoundError(Exception):
     pass
 
 
@@ -67,6 +74,7 @@ class CardGenerationService:
         elements: list,
         data: dict[str, str],
         customer_photo_path: Optional[Path],
+        field_image_overrides: Optional[dict[str, Image.Image]] = None,
     ) -> Image.Image:
         background_image = None
         if background_path:
@@ -82,7 +90,24 @@ class CardGenerationService:
             data=data,
             background_image=background_image,
             customer_photo_path=customer_photo_path,
+            field_image_overrides=field_image_overrides,
         )
+
+    @staticmethod
+    def _decode_overrides(
+        field_image_overrides: Optional[FieldImageOverrides], side: str
+    ) -> Optional[dict[str, Image.Image]]:
+        if not field_image_overrides:
+            return None
+        side_overrides = field_image_overrides.get(side)
+        if not side_overrides:
+            return None
+        decoded: dict[str, Image.Image] = {}
+        for element_id, data_uri in side_overrides.items():
+            image = decode_data_uri_image(data_uri)
+            if image is not None:
+                decoded[element_id] = image
+        return decoded or None
 
     def has_back_side(self, template: Template) -> bool:
         """A template only has a back design once an admin has actually put
@@ -91,7 +116,9 @@ class CardGenerationService:
         front-only card rather than generating a blank second page."""
         return bool(template.back_background_path) or bool(template.back_elements)
 
-    def _render(self, customer: Customer, template: Template) -> tuple[Image.Image, Optional[Image.Image]]:
+    def _render(
+        self, customer: Customer, template: Template, field_image_overrides: Optional[FieldImageOverrides] = None
+    ) -> tuple[Image.Image, Optional[Image.Image]]:
         """Renders the front, and the back too when the template has one."""
         details = self._latest_verified_details(customer.id)
         data = resolve_card_variables(customer, details)
@@ -102,27 +129,84 @@ class CardGenerationService:
             if candidate.exists():
                 customer_photo_path = candidate
 
-        front = self._render_side(template, template.background_path, template.elements, data, customer_photo_path)
+        front = self._render_side(
+            template,
+            template.background_path,
+            template.elements,
+            data,
+            customer_photo_path,
+            self._decode_overrides(field_image_overrides, "front"),
+        )
 
         back = None
         if self.has_back_side(template):
             back = self._render_side(
-                template, template.back_background_path, template.back_elements, data, customer_photo_path
+                template,
+                template.back_background_path,
+                template.back_elements,
+                data,
+                customer_photo_path,
+                self._decode_overrides(field_image_overrides, "back"),
             )
 
         return front, back
 
-    def preview_png_bytes(self, customer_id: str, template_id: str, side: str = "front") -> bytes:
+    def preview_png_bytes(
+        self,
+        customer_id: str,
+        template_id: str,
+        side: str = "front",
+        field_image_overrides: Optional[FieldImageOverrides] = None,
+    ) -> bytes:
         customer, template = self._load_customer_and_template(customer_id, template_id)
-        front, back = self._render(customer, template)
+        front, back = self._render(customer, template, field_image_overrides)
         image = back if (side == "back" and back is not None) else front
         buffer = io.BytesIO()
         image.convert("RGB").save(buffer, format="PNG")
         return buffer.getvalue()
 
-    def generate(self, customer_id: str, template_id: str, created_by: Optional[str], order_id: Optional[str] = None) -> GeneratedCard:
+    def render_box_image(self, customer_id: str, template_id: str, side: str, element_id: str) -> bytes:
+        """Renders a single template element on its own, as a transparent
+        box_w x box_h PNG — the "confirm this field" drag thumbnail shown
+        next to a field once it's been saved. Always rendered fresh from
+        the customer's current saved data, so it's exactly what the
+        element would look like on the card right now — the same
+        rendering path as the full card, just cropped to one box."""
         customer, template = self._load_customer_and_template(customer_id, template_id)
-        front, back = self._render(customer, template)
+        details = self._latest_verified_details(customer.id)
+        data = resolve_card_variables(customer, details)
+
+        elements = template.back_elements if side == "back" else template.elements
+        element = next((e for e in (elements or []) if e.get("id") == element_id), None)
+        if element is None:
+            raise ElementNotFoundError(element_id)
+
+        customer_photo_path: Optional[Path] = None
+        if details and details.photo_path:
+            candidate = resolve_stored_path(details.photo_path)
+            if candidate.exists():
+                customer_photo_path = candidate
+
+        box_w = max(1, mm_to_px(float(element.get("width", 1)), template.dpi))
+        box_h = max(1, mm_to_px(float(element.get("height", 1)), template.dpi))
+        layer = render_element_layer(element, box_w, box_h, template.dpi, data, customer_photo_path)
+        if layer is None:
+            layer = Image.new("RGBA", (box_w, box_h), (0, 0, 0, 0))
+
+        buffer = io.BytesIO()
+        layer.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    def generate(
+        self,
+        customer_id: str,
+        template_id: str,
+        created_by: Optional[str],
+        order_id: Optional[str] = None,
+        field_image_overrides: Optional[FieldImageOverrides] = None,
+    ) -> GeneratedCard:
+        customer, template = self._load_customer_and_template(customer_id, template_id)
+        front, back = self._render(customer, template, field_image_overrides)
         rgb_front = front.convert("RGB")
         rgb_back = back.convert("RGB") if back is not None else None
 

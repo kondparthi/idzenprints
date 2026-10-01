@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { listCustomers } from "@/api/customers";
 import { listCardTypes } from "@/api/cardTypes";
 import { listTemplates } from "@/api/templates";
-import { downloadCard, generateCard, previewCard } from "@/api/cards";
+import { downloadCard, generateCard, getBoxImageDataUrl, previewCard, type FieldImageOverrides } from "@/api/cards";
 import { listCustomerDetailsForCustomer, updateCustomerDetails } from "@/api/customerDetails";
 import type { Customer } from "@/types/customer";
 import type { CardType } from "@/types/cardType";
@@ -12,8 +12,17 @@ import type { Template } from "@/types/template";
 import type { GeneratedCard } from "@/types/generatedCard";
 import type { CustomerDetails, CustomerDetailsInput } from "@/types/document";
 import { templateHasBackSide } from "@/types/template";
-import { findFieldBoxes, isPointInBoxes, type FieldBox } from "@/utils/fieldPlacement";
+import { findDraggableElements, isPointInBoxes, type DraggableElementBox } from "@/utils/fieldPlacement";
 import "./CardGenerate.css";
+
+type Side = "front" | "back";
+
+/** "front:el_123" — the key used throughout for box image state, locks,
+ * and the drag payload, so a box is always identified together with
+ * which side of the card it's on. */
+function boxKey(side: Side, elementId: string): string {
+  return `${side}:${elementId}`;
+}
 
 const DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
   { key: "name", label: "Name" },
@@ -50,13 +59,16 @@ export default function CardGenerate() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Drag-to-verify: before printing, staff drag each extracted field onto
-  // the rendered card to confirm it's actually showing up in the right
-  // spot — catches a wrong template, a stale preview, or OCR data that
-  // silently didn't make it onto the card, before it goes to print.
-  const [verifiedFields, setVerifiedFields] = useState<Set<string>>(new Set());
-  const [dragKey, setDragKey] = useState<string | null>(null);
-  const [dropFlash, setDropFlash] = useState<{ key: string; ok: boolean; side: "front" | "back" } | null>(null);
+  // Confirm-by-image: before printing, staff drag a server-rendered
+  // snapshot of each card box onto its spot on the preview. Dropping it
+  // correctly both confirms the placement AND locks that exact image in —
+  // from then on the box uses this picture, not a fresh text render, for
+  // the preview and the printed card, so whatever staff saw and dragged is
+  // exactly what ends up on the card.
+  const [boxImages, setBoxImages] = useState<Record<string, string>>({});
+  const [lockedBoxes, setLockedBoxes] = useState<Set<string>>(new Set());
+  const [dragBoxKey, setDragBoxKey] = useState<string | null>(null);
+  const [dropFlash, setDropFlash] = useState<{ key: string; ok: boolean; side: Side } | null>(null);
   const frontImgRef = useRef<HTMLImageElement | null>(null);
   const backImgRef = useRef<HTMLImageElement | null>(null);
 
@@ -86,15 +98,17 @@ export default function CardGenerate() {
     setPreviewUrl(null);
     setBackPreviewUrl(null);
     setGeneratedCard(null);
-    setVerifiedFields(new Set());
+    setLockedBoxes(new Set());
+    setBoxImages({});
   }, [cardTypeId]);
 
-  // A different template changes which fields even appear on the card, and
-  // any earlier preview is now stale — the verification has to start over.
+  // A different template changes which boxes even appear on the card, and
+  // any earlier preview is now stale — the confirmation has to start over.
   useEffect(() => {
     setPreviewUrl(null);
     setBackPreviewUrl(null);
-    setVerifiedFields(new Set());
+    setLockedBoxes(new Set());
+    setBoxImages({});
   }, [templateId]);
 
   // The step the app was missing: show what OCR extracted (and whether an
@@ -103,7 +117,8 @@ export default function CardGenerate() {
   useEffect(() => {
     setExtractedDetails(null);
     setHasCheckedDetails(false);
-    setVerifiedFields(new Set());
+    setLockedBoxes(new Set());
+    setBoxImages({});
     if (!customerId) return;
 
     setIsLoadingDetails(true);
@@ -120,29 +135,85 @@ export default function CardGenerate() {
 
   const selectedTemplate = templates.find((t) => t.id === templateId) ?? null;
 
-  const frontBoxesByField: Record<string, FieldBox[]> = {};
-  const backBoxesByField: Record<string, FieldBox[]> = {};
-  if (selectedTemplate) {
-    for (const field of DETAIL_FIELDS) {
-      frontBoxesByField[field.key] = findFieldBoxes(selectedTemplate.elements, field.key);
-      backBoxesByField[field.key] = findFieldBoxes(selectedTemplate.back_elements, field.key);
-    }
+  // Only fields that actually have a value are worth asking staff to
+  // confirm — an empty field has nothing to snapshot (the completeness
+  // problem is a separate, earlier check). One row per template element,
+  // not per field: a box can combine several fields in one block (e.g.
+  // name + name_local + dob + gender stacked in one text box), and the
+  // snapshot image is always of the whole box.
+  const filledKeys = DETAIL_FIELDS.filter((f) => extractedDetails && (extractedDetails[f.key] as string | null)).map(
+    (f) => f.key as string
+  );
+  const frontBoxes: DraggableElementBox[] = selectedTemplate
+    ? findDraggableElements(selectedTemplate.elements, filledKeys)
+    : [];
+  const backBoxes: DraggableElementBox[] = selectedTemplate
+    ? findDraggableElements(selectedTemplate.back_elements, filledKeys)
+    : [];
+  const allBoxKeys = [
+    ...frontBoxes.map((b) => boxKey("front", b.elementId)),
+    ...backBoxes.map((b) => boxKey("back", b.elementId)),
+  ];
+  const verificationRequired = allBoxKeys.length > 0;
+  const confirmedBoxCount = allBoxKeys.filter((key) => lockedBoxes.has(key)).length;
+  const allBoxesLocked = verificationRequired && confirmedBoxCount === allBoxKeys.length;
+  const canGenerate = !verificationRequired || allBoxesLocked;
+
+  function fieldLabelsForElement(elementId: string, side: Side): string {
+    const elements = side === "front" ? selectedTemplate?.elements : selectedTemplate?.back_elements;
+    const el = elements?.find((e) => e.id === elementId);
+    const text = el?.type === "text" ? el.text : el?.type === "qrcode" || el?.type === "barcode" ? el.value : "";
+    return DETAIL_FIELDS.filter((f) => text.includes(`{{${f.key}}}`))
+      .map((f) => f.label)
+      .join(", ");
   }
 
-  // Only fields that actually have a value AND actually appear somewhere on
-  // this template are worth asking staff to confirm — a field the template
-  // doesn't use can't be dragged onto it, and an empty field has nothing to
-  // verify (the completeness problem is a separate, earlier check).
-  const draggableFieldKeys = DETAIL_FIELDS.filter(
-    (field) =>
-      extractedDetails &&
-      (extractedDetails[field.key] as string | null) &&
-      (frontBoxesByField[field.key]?.length ?? 0) + (backBoxesByField[field.key]?.length ?? 0) > 0
-  ).map((field) => field.key as string);
-  const verificationRequired = draggableFieldKeys.length > 0;
-  const confirmedFieldCount = draggableFieldKeys.filter((key) => verifiedFields.has(key)).length;
-  const allFieldsVerified = verificationRequired && confirmedFieldCount === draggableFieldKeys.length;
-  const canGenerate = !verificationRequired || allFieldsVerified;
+  // Once a preview exists, fetch a fresh server-rendered snapshot for every
+  // box that doesn't have one yet — so there's always a correct, current
+  // thumbnail ready to drag, without re-fetching ones already in hand.
+  useEffect(() => {
+    if (!previewUrl || !customerId || !templateId) return;
+    const missing: { side: Side; elementId: string }[] = [];
+    for (const b of frontBoxes) {
+      if (!(boxKey("front", b.elementId) in boxImages)) missing.push({ side: "front", elementId: b.elementId });
+    }
+    for (const b of backBoxes) {
+      if (!(boxKey("back", b.elementId) in boxImages)) missing.push({ side: "back", elementId: b.elementId });
+    }
+    if (missing.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      missing.map(({ side, elementId }) =>
+        getBoxImageDataUrl(customerId, templateId, side, elementId)
+          .then((url) => [boxKey(side, elementId), url] as const)
+          .catch(() => null)
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const updates = Object.fromEntries(results.filter((r): r is readonly [string, string] => r !== null));
+      if (Object.keys(updates).length) setBoxImages((prev) => ({ ...prev, ...updates }));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewUrl, customerId, templateId, extractedDetails]);
+
+  /** Builds the field_image_overrides payload from whichever boxes are
+   * currently locked — sent to both preview (so a re-render matches
+   * exactly) and generate (so it's what actually gets printed). */
+  function buildOverrides(): FieldImageOverrides | undefined {
+    if (lockedBoxes.size === 0) return undefined;
+    const overrides: FieldImageOverrides = {};
+    for (const key of lockedBoxes) {
+      const [side, elementId] = key.split(":");
+      const image = boxImages[key];
+      if (!image) continue;
+      overrides[side] = overrides[side] || {};
+      overrides[side][elementId] = image;
+    }
+    return overrides;
+  }
 
   async function handlePreview() {
     if (!customerId || !templateId) {
@@ -151,13 +222,13 @@ export default function CardGenerate() {
     }
     setError(null);
     setIsPreviewing(true);
-    setVerifiedFields(new Set());
     try {
       const selected = templates.find((t) => t.id === templateId);
       const hasBack = selected ? templateHasBackSide(selected) : false;
+      const overrides = buildOverrides();
       const [url, backUrl] = await Promise.all([
-        previewCard(customerId, templateId, "front"),
-        hasBack ? previewCard(customerId, templateId, "back") : Promise.resolve(null),
+        previewCard(customerId, templateId, "front", overrides),
+        hasBack ? previewCard(customerId, templateId, "back", overrides) : Promise.resolve(null),
       ]);
       setPreviewUrl(url);
       setBackPreviewUrl(backUrl);
@@ -168,28 +239,35 @@ export default function CardGenerate() {
     }
   }
 
-  function handleFieldDragStart(key: string) {
+  function handleBoxDragStart(side: Side, elementId: string) {
     return (e: DragEvent<HTMLElement>) => {
+      const key = boxKey(side, elementId);
       e.dataTransfer.setData("text/plain", key);
       e.dataTransfer.effectAllowed = "copy";
-      setDragKey(key);
+      setDragBoxKey(key);
     };
   }
 
-  function handleFieldDragEnd() {
-    setDragKey(null);
+  function handleBoxDragEnd() {
+    setDragBoxKey(null);
   }
 
   function handleDragOverPreview(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
   }
 
-  function handleDropOnSide(side: "front" | "back") {
+  function handleDropOnSide(side: Side) {
     return (e: DragEvent<HTMLDivElement>) => {
       e.preventDefault();
-      const key = e.dataTransfer.getData("text/plain") || dragKey;
-      setDragKey(null);
+      const key = e.dataTransfer.getData("text/plain") || dragBoxKey;
+      setDragBoxKey(null);
       if (!key || !selectedTemplate) return;
+      const [dragSide, elementId] = key.split(":");
+      if (dragSide !== side) {
+        setDropFlash({ key, ok: false, side });
+        window.setTimeout(() => setDropFlash(null), 1400);
+        return;
+      }
 
       const imgEl = side === "front" ? frontImgRef.current : backImgRef.current;
       if (!imgEl) return;
@@ -197,10 +275,11 @@ export default function CardGenerate() {
       const xMm = ((e.clientX - rect.left) / rect.width) * selectedTemplate.width_mm;
       const yMm = ((e.clientY - rect.top) / rect.height) * selectedTemplate.height_mm;
 
-      const boxes = side === "front" ? frontBoxesByField[key] : backBoxesByField[key];
-      const ok = isPointInBoxes(boxes ?? [], xMm, yMm);
+      const boxList = side === "front" ? frontBoxes : backBoxes;
+      const box = boxList.find((b) => b.elementId === elementId);
+      const ok = box ? isPointInBoxes([box], xMm, yMm) : false;
       if (ok) {
-        setVerifiedFields((prev) => new Set(prev).add(key));
+        setLockedBoxes((prev) => new Set(prev).add(key));
       }
       setDropFlash({ key, ok, side });
       window.setTimeout(() => setDropFlash(null), 1400);
@@ -221,18 +300,36 @@ export default function CardGenerate() {
     if (!editingKey || !extractedDetails) return;
     setIsSavingEdit(true);
     try {
+      const savedKey = editingKey;
       const updated = await updateCustomerDetails(extractedDetails.id, {
-        [editingKey]: editValue,
+        [savedKey]: editValue,
       } as CustomerDetailsInput);
       setExtractedDetails(updated);
-      // The text changed, so any earlier drag-confirmation for this field no
-      // longer proves anything — and if a preview is already on screen, it's
-      // now showing the old text, so re-render it with the correction.
-      setVerifiedFields((prev) => {
-        const next = new Set(prev);
-        next.delete(editingKey);
-        return next;
-      });
+      // The text changed, so any box that renders this field is now stale —
+      // drop its old snapshot and lock so it gets re-rendered and has to be
+      // re-confirmed before the card can be generated again.
+      const token = `{{${savedKey}}}`;
+      const staleKeys = new Set<string>();
+      for (const el of selectedTemplate?.elements ?? []) {
+        const text = el.type === "text" ? el.text : el.type === "qrcode" || el.type === "barcode" ? el.value : "";
+        if (text.includes(token)) staleKeys.add(boxKey("front", el.id));
+      }
+      for (const el of selectedTemplate?.back_elements ?? []) {
+        const text = el.type === "text" ? el.text : el.type === "qrcode" || el.type === "barcode" ? el.value : "";
+        if (text.includes(token)) staleKeys.add(boxKey("back", el.id));
+      }
+      if (staleKeys.size) {
+        setLockedBoxes((prev) => {
+          const next = new Set(prev);
+          staleKeys.forEach((k) => next.delete(k));
+          return next;
+        });
+        setBoxImages((prev) => {
+          const next = { ...prev };
+          staleKeys.forEach((k) => delete next[k]);
+          return next;
+        });
+      }
       setEditingKey(null);
       setEditValue("");
       if (previewUrl) {
@@ -253,7 +350,7 @@ export default function CardGenerate() {
     setError(null);
     setIsGenerating(true);
     try {
-      const card = await generateCard(customerId, templateId);
+      const card = await generateCard(customerId, templateId, buildOverrides());
       setGeneratedCard(card);
     } catch {
       setError("Card generation failed.");
@@ -325,10 +422,10 @@ export default function CardGenerate() {
               </button>
             </div>
 
-            {verificationRequired && !allFieldsVerified && (
+            {verificationRequired && !allBoxesLocked && (
               <p className="field-hint">
-                Drag each extracted field below onto its spot on the preview to confirm it's correct — {confirmedFieldCount}{" "}
-                of {draggableFieldKeys.length} confirmed. Generate card unlocks once all are checked.
+                Drag each snapshot in "Confirm card content" below onto its spot on the preview to lock it in —{" "}
+                {confirmedBoxCount} of {allBoxKeys.length} confirmed. Generate card unlocks once all are checked.
               </p>
             )}
 
@@ -381,8 +478,6 @@ export default function CardGenerate() {
                   <dl className="extracted-details-list">
                     {DETAIL_FIELDS.map((field) => {
                       const value = extractedDetails[field.key] as string | null;
-                      const isDraggable = previewUrl && draggableFieldKeys.includes(field.key);
-                      const isVerified = verifiedFields.has(field.key);
                       const isEditing = editingKey === field.key;
                       const isMultiline = field.key === "address" || field.key === "address_local";
 
@@ -432,15 +527,7 @@ export default function CardGenerate() {
                       return (
                         <div key={field.key} className="extracted-details-row">
                           <dt>{field.label}</dt>
-                          <dd
-                            draggable={Boolean(isDraggable) && !isVerified}
-                            onDragStart={isDraggable ? handleFieldDragStart(field.key) : undefined}
-                            onDragEnd={isDraggable ? handleFieldDragEnd : undefined}
-                            className={
-                              (isDraggable ? "detail-draggable " : "") + (isVerified ? "detail-verified" : "")
-                            }
-                            title={isDraggable ? "Drag onto the card preview to confirm it's in the right place" : undefined}
-                          >
+                          <dd>
                             <span className="detail-value-text">{value || "—"}</span>
                             <button
                               type="button"
@@ -450,15 +537,66 @@ export default function CardGenerate() {
                             >
                               <i className="bi bi-pencil"></i>
                             </button>
-                            {isVerified && <span className="detail-verified-badge">✓ Confirmed</span>}
                           </dd>
                         </div>
                       );
                     })}
                   </dl>
-                  {previewUrl && !verificationRequired && (
-                    <p className="field-hint">No draggable fields to confirm — nothing on this template uses the extracted data, or none of it is filled in.</p>
+
+                  {previewUrl && (
+                    <div className="box-confirm-panel">
+                      <h3>Confirm card content</h3>
+                      {!verificationRequired ? (
+                        <p className="field-hint">
+                          Nothing on this template uses the extracted data, or none of it is filled in — nothing to confirm.
+                        </p>
+                      ) : (
+                        <>
+                          <p className="field-hint">
+                            Drag each snapshot onto its spot on the card — once dropped correctly, that exact picture
+                            is what prints, so a text edit afterwards won't change what's on the card.
+                          </p>
+                          {([
+                            ["front", frontBoxes],
+                            ["back", backBoxes],
+                          ] as [Side, DraggableElementBox[]][])
+                            .filter(([, boxes]) => boxes.length > 0)
+                            .map(([side, boxes]) => (
+                              <div key={side} className="box-confirm-side">
+                                <p className="box-confirm-side-label">{side === "front" ? "Front" : "Back"}</p>
+                                <div className="box-confirm-list">
+                                  {boxes.map((b) => {
+                                    const key = boxKey(side, b.elementId);
+                                    const isLocked = lockedBoxes.has(key);
+                                    const imgSrc = boxImages[key];
+                                    return (
+                                      <div key={key} className={"box-confirm-item " + (isLocked ? "box-confirm-locked" : "")}>
+                                        {imgSrc ? (
+                                          <img
+                                            src={imgSrc}
+                                            alt={fieldLabelsForElement(b.elementId, side)}
+                                            className="box-confirm-thumb"
+                                            draggable={!isLocked}
+                                            onDragStart={handleBoxDragStart(side, b.elementId)}
+                                            onDragEnd={handleBoxDragEnd}
+                                            title={isLocked ? "Locked in" : "Drag onto the card to confirm & lock"}
+                                          />
+                                        ) : (
+                                          <span className="box-confirm-thumb-loading">…</span>
+                                        )}
+                                        <span className="box-confirm-fields">{fieldLabelsForElement(b.elementId, side)}</span>
+                                        {isLocked && <span className="detail-verified-badge">✓ Locked</span>}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                        </>
+                      )}
+                    </div>
                   )}
+
                   {!extractedDetails.is_verified && (
                     <p className="extracted-details-warning">
                       These details haven't been verified by an operator yet — double-check them before generating.
@@ -503,12 +641,15 @@ export default function CardGenerate() {
                     alt="Card preview — front"
                     className="card-preview-image"
                   />
-                  {dragKey && selectedTemplate && (frontBoxesByField[dragKey]?.length ?? 0) > 0 && (
-                    <div className="card-preview-targets">
-                      {frontBoxesByField[dragKey].map((b, i) => (
-                        <div
-                          key={i}
-                          className="card-preview-target-box"
+                  {selectedTemplate &&
+                    frontBoxes
+                      .filter((b) => lockedBoxes.has(boxKey("front", b.elementId)))
+                      .map((b) => (
+                        <img
+                          key={b.elementId}
+                          src={boxImages[boxKey("front", b.elementId)]}
+                          alt=""
+                          className="card-preview-locked-image"
                           style={{
                             left: `${(b.x / selectedTemplate.width_mm) * 100}%`,
                             top: `${(b.y / selectedTemplate.height_mm) * 100}%`,
@@ -517,13 +658,31 @@ export default function CardGenerate() {
                           }}
                         />
                       ))}
-                    </div>
-                  )}
+                  {dragBoxKey &&
+                    selectedTemplate &&
+                    dragBoxKey.startsWith("front:") &&
+                    (() => {
+                      const b = frontBoxes.find((box) => boxKey("front", box.elementId) === dragBoxKey);
+                      if (!b) return null;
+                      return (
+                        <div className="card-preview-targets">
+                          <div
+                            className="card-preview-target-box"
+                            style={{
+                              left: `${(b.x / selectedTemplate.width_mm) * 100}%`,
+                              top: `${(b.y / selectedTemplate.height_mm) * 100}%`,
+                              width: `${(b.width / selectedTemplate.width_mm) * 100}%`,
+                              height: `${(b.height / selectedTemplate.height_mm) * 100}%`,
+                            }}
+                          />
+                        </div>
+                      );
+                    })()}
                 </div>
                 {dropFlash && dropFlash.side === "front" && (
                   <p className={"drop-flash " + (dropFlash.ok ? "drop-flash-ok" : "drop-flash-fail")}>
                     {dropFlash.ok
-                      ? `✓ ${DETAIL_FIELDS.find((f) => f.key === dropFlash.key)?.label} confirmed`
+                      ? `✓ ${fieldLabelsForElement(dropFlash.key.split(":")[1], "front")} confirmed`
                       : "Not placed correctly — try again"}
                   </p>
                 )}
@@ -542,12 +701,15 @@ export default function CardGenerate() {
                       alt="Card preview — back"
                       className="card-preview-image"
                     />
-                    {dragKey && selectedTemplate && (backBoxesByField[dragKey]?.length ?? 0) > 0 && (
-                      <div className="card-preview-targets">
-                        {backBoxesByField[dragKey].map((b, i) => (
-                          <div
-                            key={i}
-                            className="card-preview-target-box"
+                    {selectedTemplate &&
+                      backBoxes
+                        .filter((b) => lockedBoxes.has(boxKey("back", b.elementId)))
+                        .map((b) => (
+                          <img
+                            key={b.elementId}
+                            src={boxImages[boxKey("back", b.elementId)]}
+                            alt=""
+                            className="card-preview-locked-image"
                             style={{
                               left: `${(b.x / selectedTemplate.width_mm) * 100}%`,
                               top: `${(b.y / selectedTemplate.height_mm) * 100}%`,
@@ -556,13 +718,31 @@ export default function CardGenerate() {
                             }}
                           />
                         ))}
-                      </div>
-                    )}
+                    {dragBoxKey &&
+                      selectedTemplate &&
+                      dragBoxKey.startsWith("back:") &&
+                      (() => {
+                        const b = backBoxes.find((box) => boxKey("back", box.elementId) === dragBoxKey);
+                        if (!b) return null;
+                        return (
+                          <div className="card-preview-targets">
+                            <div
+                              className="card-preview-target-box"
+                              style={{
+                                left: `${(b.x / selectedTemplate.width_mm) * 100}%`,
+                                top: `${(b.y / selectedTemplate.height_mm) * 100}%`,
+                                width: `${(b.width / selectedTemplate.width_mm) * 100}%`,
+                                height: `${(b.height / selectedTemplate.height_mm) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        );
+                      })()}
                   </div>
                   {dropFlash && dropFlash.side === "back" && (
                     <p className={"drop-flash " + (dropFlash.ok ? "drop-flash-ok" : "drop-flash-fail")}>
                       {dropFlash.ok
-                        ? `✓ ${DETAIL_FIELDS.find((f) => f.key === dropFlash.key)?.label} confirmed`
+                        ? `✓ ${fieldLabelsForElement(dropFlash.key.split(":")[1], "back")} confirmed`
                         : "Not placed correctly — try again"}
                     </p>
                   )}
