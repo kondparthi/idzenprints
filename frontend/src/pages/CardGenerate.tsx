@@ -10,6 +10,7 @@ import type { CardType } from "@/types/cardType";
 import type { Template } from "@/types/template";
 import type { GeneratedCard } from "@/types/generatedCard";
 import type { CustomerDetails } from "@/types/document";
+import { templateHasBackSide } from "@/types/template";
 import "./CardGenerate.css";
 
 const DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
@@ -39,6 +40,7 @@ export default function CardGenerate() {
   const [hasCheckedDetails, setHasCheckedDetails] = useState(false);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [backPreviewUrl, setBackPreviewUrl] = useState<string | null>(null);
   const [generatedCard, setGeneratedCard] = useState<GeneratedCard | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -60,6 +62,7 @@ export default function CardGenerate() {
   useEffect(() => {
     setTemplateId("");
     setPreviewUrl(null);
+    setBackPreviewUrl(null);
     setGeneratedCard(null);
   }, [cardTypeId]);
 
@@ -91,8 +94,14 @@ export default function CardGenerate() {
     setError(null);
     setIsPreviewing(true);
     try {
-      const url = await previewCard(customerId, templateId);
+      const selectedTemplate = templates.find((t) => t.id === templateId);
+      const hasBack = selectedTemplate ? templateHasBackSide(selectedTemplate) : false;
+      const [url, backUrl] = await Promise.all([
+        previewCard(customerId, templateId, "front"),
+        hasBack ? previewCard(customerId, templateId, "back") : Promise.resolve(null),
+      ]);
       setPreviewUrl(url);
+      setBackPreviewUrl(backUrl);
     } catch {
       setError("Couldn't render a preview. Make sure the customer has verified details.");
     } finally {
@@ -182,17 +191,30 @@ export default function CardGenerate() {
 
             {generatedCard && (
               <div className="card-generate-downloads">
-                <p className="verified-note">Generated — download below.</p>
+                <p className="verified-note">
+                  Generated — download below.
+                  {generatedCard.back_png_path && " The PDF has both the front and back as two pages."}
+                </p>
                 <div className="card-generate-actions">
                   <button className="btn btn-secondary" onClick={() => downloadCard(generatedCard.id, "pdf", customerName())}>
                     Download PDF
                   </button>
                   <button className="btn btn-secondary" onClick={() => downloadCard(generatedCard.id, "png", customerName())}>
-                    Download PNG
+                    Download PNG (front)
                   </button>
                   <button className="btn btn-secondary" onClick={() => downloadCard(generatedCard.id, "jpg", customerName())}>
-                    Download JPG
+                    Download JPG (front)
                   </button>
+                  {generatedCard.back_png_path && (
+                    <>
+                      <button className="btn btn-secondary" onClick={() => downloadCard(generatedCard.id, "png", customerName(), "back")}>
+                        Download PNG (back)
+                      </button>
+                      <button className="btn btn-secondary" onClick={() => downloadCard(generatedCard.id, "jpg", customerName(), "back")}>
+                        Download JPG (back)
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -251,7 +273,18 @@ export default function CardGenerate() {
 
         <div className="card-panel card-preview-panel">
           {previewUrl ? (
-            <img src={previewUrl} alt="Card preview" className="card-preview-image" />
+            <div className="card-preview-sides">
+              <div className="card-preview-side">
+                {backPreviewUrl && <p className="card-preview-side-label">Front</p>}
+                <img src={previewUrl} alt="Card preview — front" className="card-preview-image" />
+              </div>
+              {backPreviewUrl && (
+                <div className="card-preview-side">
+                  <p className="card-preview-side-label">Back</p>
+                  <img src={backPreviewUrl} alt="Card preview — back" className="card-preview-image" />
+                </div>
+              )}
+            </div>
           ) : (
             <p className="empty-state">Choose a customer and template, then click Preview.</p>
           )}

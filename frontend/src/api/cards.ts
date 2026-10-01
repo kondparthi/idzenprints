@@ -1,11 +1,11 @@
 import { apiClient } from "./client";
 import type { GeneratedCard } from "@/types/generatedCard";
 
-export async function previewCard(customerId: string, templateId: string): Promise<string> {
+export async function previewCard(customerId: string, templateId: string, side: "front" | "back" = "front"): Promise<string> {
   const response = await apiClient.post(
     "/cards/preview",
     { customer_id: customerId, template_id: templateId },
-    { responseType: "blob" }
+    { params: { side }, responseType: "blob" }
   );
   return URL.createObjectURL(response.data as Blob);
 }
@@ -33,15 +33,20 @@ export async function regenerateCard(cardId: string): Promise<GeneratedCard> {
  * requires an Authorization header, so a plain <a href> can't be used) and
  * triggering a browser save via a temporary link.
  */
-export async function downloadCard(cardId: string, format: "pdf" | "png" | "jpg", filename: string): Promise<void> {
+export async function downloadCard(
+  cardId: string,
+  format: "pdf" | "png" | "jpg",
+  filename: string,
+  side: "front" | "back" = "front"
+): Promise<void> {
   const response = await apiClient.get(`/cards/${cardId}/download`, {
-    params: { format },
+    params: { format, side },
     responseType: "blob",
   });
   const url = URL.createObjectURL(response.data as Blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${filename}.${format}`;
+  link.download = side === "back" ? `${filename}_back.${format}` : `${filename}.${format}`;
   document.body.appendChild(link);
   link.click();
   link.remove();

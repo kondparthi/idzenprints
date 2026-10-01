@@ -33,8 +33,27 @@
   min-height: 360px;
 }
 
+.card-preview-sides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  justify-content: center;
+}
+
+.card-preview-side-label {
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+  text-align: center;
+  color: var(--color-text-muted, #777);
+}
+
 .card-preview-image {
-  max-width: 100%;
+  /* The render comes back at the template's real DPI (300dpi ≈ 1000px+
+     wide) — capped here so it previews at a sane on-screen size instead
+     of filling the whole panel at full pixel resolution. */
+  max-width: 420px;
+  width: 100%;
+  height: auto;
   border-radius: var(--radius-sm);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
