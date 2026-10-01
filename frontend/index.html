@@ -7,12 +7,16 @@
     <meta name="description" content="Upload a document, verify the details, choose a card design, and generate a print-ready PVC card. Aadhaar PVC, FSC/Ration, Employee ID, Student ID, Visiting Cards, and custom cards." />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235B4FE9'/%3E%3Crect x='8' y='12' width='12' height='8' rx='2' fill='white' fill-opacity='.9'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/bootstrap-icons/bootstrap-icons.min.css" />
-    <!-- Noto Sans Telugu: lets the designer canvas preview Telugu text the
-         same way the server renders it (server-side rendering always uses
-         the bundled Noto Sans Telugu font automatically — see
-         backend/app/assets/fonts/fonts.py — this webfont just makes the
-         in-browser preview match it instead of falling back to whatever
-         Telugu font, if any, happens to be installed on the operator's PC). -->
+    <!-- Noto Sans Telugu: makes Telugu text look the same everywhere in
+         the app (extracted-details fields, the designer canvas, lists) as
+         it does on the actual printed card (server-side rendering always
+         uses the bundled Noto Sans Telugu font automatically — see
+         backend/app/assets/fonts/fonts.py). Without this, the browser
+         falls back to whatever Telugu font, if any, happens to be
+         installed on the operator's PC — a different typeface that can
+         look enough unlike the print font to seem like a mismatch, even
+         though the underlying text is identical. index.css puts this
+         font first in --font-body/--font-display app-wide. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

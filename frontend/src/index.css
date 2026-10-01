@@ -29,8 +29,15 @@
   --color-danger: #E0475F;
   --color-danger-soft: #FBE7EA;
 
-  --font-display: -apple-system, "SF Pro Display", "Segoe UI Variable", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-body: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* 'Noto Sans Telugu' first in both stacks so any Telugu text anywhere in
+     the app — extracted-details fields, lists, inputs — renders with the
+     same font the server uses to actually print the card (see
+     backend/app/assets/fonts/fonts.py), instead of whatever Telugu font
+     happens to be installed on the operator's PC. It only has Telugu
+     glyphs, so Latin/numeric text silently falls through to the system
+     fonts after it — nothing else changes. */
+  --font-display: "Noto Sans Telugu", -apple-system, "SF Pro Display", "Segoe UI Variable", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Noto Sans Telugu", -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace;
 
   --radius-sm: 8px;
