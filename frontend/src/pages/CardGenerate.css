@@ -47,6 +47,48 @@
   color: var(--color-text-muted, #777);
 }
 
+.card-preview-dropzone {
+  position: relative;
+  display: inline-block;
+}
+
+.card-preview-targets {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.card-preview-target-box {
+  position: absolute;
+  border: 2px dashed var(--color-accent, #5b4fe9);
+  background: rgba(91, 79, 233, 0.12);
+  border-radius: 3px;
+}
+
+.drop-flash {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin: var(--space-2) 0 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+
+.drop-flash-ok {
+  color: var(--color-success, #1a7f37);
+  background: var(--color-success-soft, #e6f6ea);
+}
+
+.drop-flash-fail {
+  color: var(--color-danger, #c00f2c);
+  background: var(--color-danger-soft, #fdeaea);
+}
+
+.card-preview-side {
+  text-align: center;
+}
+
 .card-preview-image {
   /* The render comes back at the template's real DPI (300dpi ≈ 1000px+
      wide) — capped here so it previews at a sane on-screen size instead
@@ -103,6 +145,33 @@
   font-weight: 600;
   text-align: right;
   max-width: 60%;
+}
+
+.detail-draggable {
+  cursor: grab;
+  border-bottom: 1px dashed var(--color-accent, #5b4fe9);
+  padding-bottom: 1px;
+}
+
+.detail-draggable:active {
+  cursor: grabbing;
+}
+
+.detail-verified {
+  color: var(--color-success, #1a7f37);
+}
+
+.detail-verified-badge {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-success, #1a7f37);
+}
+
+.field-hint {
+  margin: var(--space-2) 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #777);
 }
 
 .extracted-details-warning {
