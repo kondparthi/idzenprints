@@ -225,10 +225,16 @@ export default function CardGenerate() {
     try {
       const selected = templates.find((t) => t.id === templateId);
       const hasBack = selected ? templateHasBackSide(selected) : false;
-      const overrides = buildOverrides();
+      // Deliberately NOT passing overrides here: a locked box is already
+      // drawn on top of this preview as its own <img> overlay (see the
+      // JSX below), positioned exactly over the box. Baking the same
+      // override into the base preview too would draw that box's content
+      // twice — once from the server composite, once from the overlay —
+      // which is exactly the double/overlapping text this used to cause.
+      // Overrides still apply for real at generation time (handleGenerate).
       const [url, backUrl] = await Promise.all([
-        previewCard(customerId, templateId, "front", overrides),
-        hasBack ? previewCard(customerId, templateId, "back", overrides) : Promise.resolve(null),
+        previewCard(customerId, templateId, "front"),
+        hasBack ? previewCard(customerId, templateId, "back") : Promise.resolve(null),
       ]);
       setPreviewUrl(url);
       setBackPreviewUrl(backUrl);
