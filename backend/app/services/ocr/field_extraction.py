@@ -27,6 +27,13 @@ from app.services.ocr.base import OCRExtractionResult
 
 _DOB_PATTERN = re.compile(r"(?:D[O0]B|Date of Birth)\s*[:\-]?\s*([0-3]?\d[/\-][01]?\d[/\-]\d{2,4})", re.IGNORECASE)
 _GENDER_PATTERN = re.compile(r"\b(MALE|FEMALE|TRANSGENDER|OTHER)\b", re.IGNORECASE)
+# Front: "Aadhaar no. issued: 19/05/2013". Back (e-Aadhaar/mAadhaar print):
+# "Details as on: 03/08/2026". Both are printed near the left edge, often
+# rotated — OCR usually still reads them left-to-right as plain text, just
+# not necessarily near any other field, so they get their own patterns
+# rather than piggybacking on the DOB-anchored name scan.
+_ISSUE_DATE_PATTERN = re.compile(r"issued\s*[:\-]?\s*([0-3]?\d[/\-][01]?\d[/\-]\d{2,4})", re.IGNORECASE)
+_DETAILS_AS_ON_PATTERN = re.compile(r"Details\s+as\s+on\s*[:\-]?\s*([0-3]?\d[/\-][01]?\d[/\-]\d{2,4})", re.IGNORECASE)
 _VID_PATTERN = re.compile(r"VID\s*[:\-]?\s*(\d{4}\s?\d{4}\s?\d{4}\s?\d{4})", re.IGNORECASE)
 _TWELVE_DIGIT_PATTERN = re.compile(r"\b(\d{4}\s\d{4}\s\d{4})\b")
 _TWELVE_DIGIT_PATTERN_NO_SPACE = re.compile(r"\b(\d{12})\b")
@@ -156,6 +163,8 @@ def extract_fields_from_text(raw_text: str) -> OCRExtractionResult:
 
     dob_match = _DOB_PATTERN.search(text)
     gender_match = _GENDER_PATTERN.search(text)
+    issue_date_match = _ISSUE_DATE_PATTERN.search(text)
+    details_as_on_match = _DETAILS_AS_ON_PATTERN.search(text)
     document_number, vid_number = _extract_document_and_vid_numbers(text)
     english_name, local_name = _extract_names(lines)
     english_address, address_label_index = _extract_english_address(lines)
@@ -170,5 +179,7 @@ def extract_fields_from_text(raw_text: str) -> OCRExtractionResult:
         address_local=local_address,
         document_number=document_number,
         vid_number=vid_number,
+        issue_date=issue_date_match.group(1).strip() if issue_date_match else None,
+        details_as_on=details_as_on_match.group(1).strip() if details_as_on_match else None,
         raw_text=text,
     )

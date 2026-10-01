@@ -20,6 +20,8 @@ const DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
   { key: "gender", label: "Gender" },
   { key: "document_number", label: "Document number" },
   { key: "vid_number", label: "VID number" },
+  { key: "issue_date", label: "Aadhaar no. issued" },
+  { key: "details_as_on", label: "Details as on" },
   { key: "address", label: "Address" },
   { key: "address_local", label: "Address (regional script)" },
 ];

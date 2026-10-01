@@ -15,6 +15,8 @@ class CustomerDetailsOut(BaseModel):
     address_local: Optional[str]
     document_number: Optional[str]
     vid_number: Optional[str]
+    issue_date: Optional[str]
+    details_as_on: Optional[str]
     photo_path: Optional[str]
     is_verified: bool
 
@@ -31,4 +33,6 @@ class CustomerDetailsUpdate(BaseModel):
     address_local: Optional[str] = None
     document_number: Optional[str] = None
     vid_number: Optional[str] = None
+    issue_date: Optional[str] = None
+    details_as_on: Optional[str] = None
     is_verified: Optional[bool] = None

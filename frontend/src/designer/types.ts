@@ -66,6 +66,8 @@ export const DYNAMIC_VARIABLES = [
   "{{photo}}",
   "{{document_number}}",
   "{{vid_number}}",
+  "{{issue_date}}",
+  "{{details_as_on}}",
   "{{fsc_number}}",
   "{{employee_id}}",
   "{{student_id}}",

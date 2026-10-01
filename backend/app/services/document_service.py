@@ -37,6 +37,11 @@ def _merge_ocr_results(front: OCRExtractionResult, back: Optional[OCRExtractionR
         address_local=front.address_local or back.address_local,
         document_number=front.document_number or back.document_number,
         vid_number=front.vid_number or back.vid_number,
+        # issue_date is printed on the front, details_as_on on the back —
+        # each only ever comes from one side, but "front or back" still
+        # covers it either way without assuming which side has which.
+        issue_date=front.issue_date or back.issue_date,
+        details_as_on=front.details_as_on or back.details_as_on,
         raw_text=f"{front.raw_text or ''}\n{back.raw_text or ''}".strip(),
     )
 
@@ -136,6 +141,8 @@ class DocumentService:
             existing.address_local = result.address_local
             existing.document_number = result.document_number
             existing.vid_number = result.vid_number
+            existing.issue_date = result.issue_date
+            existing.details_as_on = result.details_as_on
             existing.is_verified = False
             return self.details_repo.save(existing)
 
@@ -150,6 +157,8 @@ class DocumentService:
             address_local=result.address_local,
             document_number=result.document_number,
             vid_number=result.vid_number,
+            issue_date=result.issue_date,
+            details_as_on=result.details_as_on,
             is_verified=False,
         )
         return self.details_repo.create(details)

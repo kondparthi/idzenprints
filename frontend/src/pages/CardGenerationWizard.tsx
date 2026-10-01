@@ -102,6 +102,8 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
         address_local: details.address_local ?? undefined,
         document_number: details.document_number ?? undefined,
         vid_number: details.vid_number ?? undefined,
+        issue_date: details.issue_date ?? undefined,
+        details_as_on: details.details_as_on ?? undefined,
       });
       setDetails(saved);
       if (cardTypeId) {
@@ -245,9 +247,19 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
             <label htmlFor="addressLocal">Address (regional language)</label>
             <textarea id="addressLocal" rows={2} value={details.address_local ?? ""} onChange={(e) => setDetails({ ...details, address_local: e.target.value })} />
           </div>
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="docNumber">Document number</label>
+              <input id="docNumber" value={details.document_number ?? ""} onChange={(e) => setDetails({ ...details, document_number: e.target.value })} />
+            </div>
+            <div className="field">
+              <label htmlFor="issueDate">Aadhaar no. issued</label>
+              <input id="issueDate" value={details.issue_date ?? ""} onChange={(e) => setDetails({ ...details, issue_date: e.target.value })} />
+            </div>
+          </div>
           <div className="field">
-            <label htmlFor="docNumber">Document number</label>
-            <input id="docNumber" value={details.document_number ?? ""} onChange={(e) => setDetails({ ...details, document_number: e.target.value })} />
+            <label htmlFor="detailsAsOn">Details as on</label>
+            <input id="detailsAsOn" value={details.details_as_on ?? ""} onChange={(e) => setDetails({ ...details, details_as_on: e.target.value })} />
           </div>
           <button className="btn btn-primary" disabled={isBusy} onClick={handleSaveDetails}>
             {isBusy ? "Saving…" : "Save & choose a theme"}

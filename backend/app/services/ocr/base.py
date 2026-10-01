@@ -18,6 +18,8 @@ class OCRExtractionResult:
     address_local: Optional[str] = None
     document_number: Optional[str] = None
     vid_number: Optional[str] = None
+    issue_date: Optional[str] = None
+    details_as_on: Optional[str] = None
     raw_text: Optional[str] = None
 
 

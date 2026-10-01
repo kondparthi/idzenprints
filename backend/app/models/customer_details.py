@@ -29,6 +29,11 @@ class CustomerDetails(Base, TimestampMixin):
     address_local = Column(Text, nullable=True)
     document_number = Column(String(50), nullable=True)
     vid_number = Column(String(50), nullable=True)
+    # "Aadhaar no. issued: <date>" (front) / "Details as on: <date>" (back)
+    # — free-text like dob, for the same reason: OCR output is messy and
+    # an operator must be able to save a partial correction.
+    issue_date = Column(String(20), nullable=True)
+    details_as_on = Column(String(20), nullable=True)
     # Path relative to settings.UPLOAD_DIR — never a publicly reachable URL.
     photo_path = Column(String(500), nullable=True)
 

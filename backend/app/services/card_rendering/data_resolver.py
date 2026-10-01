@@ -28,6 +28,8 @@ def resolve_card_variables(customer: Customer, details: Optional[CustomerDetails
         "mobile": customer.mobile or "",
         "document_number": document_number or "",
         "vid_number": (details.vid_number if details else "") or "",
+        "issue_date": (details.issue_date if details else "") or "",
+        "details_as_on": (details.details_as_on if details else "") or "",
     }
     for field in _UNRESOLVED_PLACEHOLDER_FIELDS:
         data[field] = document_number or "" if field in ("fsc_number", "employee_id", "student_id") else ""
