@@ -43,11 +43,11 @@ export async function listTemplatesForCardType(cardTypeId: string): Promise<Temp
   return data;
 }
 
-export async function previewCard(documentId: string, templateId: string): Promise<string> {
+export async function previewCard(documentId: string, templateId: string, side: "front" | "back" = "front"): Promise<string> {
   const { data } = await memberApiClient.post(
     "/auth/member/cards/preview",
     null,
-    { params: { document_id: documentId, template_id: templateId }, responseType: "blob" }
+    { params: { document_id: documentId, template_id: templateId, side }, responseType: "blob" }
   );
   return URL.createObjectURL(data as Blob);
 }
@@ -61,9 +61,13 @@ export async function generateCard(documentId: string, templateId: string, cardT
   return data;
 }
 
-export async function downloadCardBlob(cardId: string, format: "pdf" | "png" | "jpg" = "pdf"): Promise<Blob> {
+export async function downloadCardBlob(
+  cardId: string,
+  format: "pdf" | "png" | "jpg" = "pdf",
+  side: "front" | "back" = "front"
+): Promise<Blob> {
   const { data } = await memberApiClient.get(`/auth/member/cards/${cardId}/download`, {
-    params: { format },
+    params: { format, side },
     responseType: "blob",
   });
   return data as Blob;
@@ -73,8 +77,13 @@ export async function downloadCardBlob(cardId: string, format: "pdf" | "png" | "
  * URL wouldn't carry the member's auth token, so this fetches the
  * file through the authenticated client first, then hands the
  * browser a local blob URL to save. */
-export async function triggerCardDownload(cardId: string, filename: string, format: "pdf" | "png" | "jpg" = "pdf") {
-  const blob = await downloadCardBlob(cardId, format);
+export async function triggerCardDownload(
+  cardId: string,
+  filename: string,
+  format: "pdf" | "png" | "jpg" = "pdf",
+  side: "front" | "back" = "front"
+) {
+  const blob = await downloadCardBlob(cardId, format, side);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

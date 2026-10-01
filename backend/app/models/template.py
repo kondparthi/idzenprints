@@ -31,6 +31,13 @@ class Template(Base, TimestampMixin):
     # each entry is expected to follow.
     elements = Column(JSON, nullable=False, default=list)
 
+    # Optional back side — most ID cards (Aadhaar PVC in particular) need
+    # both faces designed, sharing the same {{variable}} data as the front.
+    # Both nullable/default-empty so every existing single-sided template
+    # keeps working unchanged: no back fields set means "front-only card".
+    back_background_path = Column(String(500), nullable=True)
+    back_elements = Column(JSON, nullable=False, default=list)
+
     is_active = Column(Boolean, nullable=False, default=True)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
 

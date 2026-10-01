@@ -5,6 +5,7 @@ import {
   getTemplate,
   updateTemplate,
   uploadTemplateBackground,
+  type TemplateSide,
 } from "@/api/templates";
 import CanvasElement from "@/designer/CanvasElement";
 import Toolbar from "@/designer/Toolbar";
@@ -21,22 +22,37 @@ export default function TemplateDesigner() {
   const navigate = useNavigate();
 
   const [template, setTemplate] = useState<Template | null>(null);
-  const [elements, setElements] = useState<DesignElement[]>([]);
+  // Front and back are tracked as separate element lists/backgrounds —
+  // same {{variable}} data, two independent layouts, switched with the
+  // side tabs below. A template is front-only until an admin actually
+  // adds something to the back.
+  const [side, setSide] = useState<TemplateSide>("front");
+  const [frontElements, setFrontElements] = useState<DesignElement[]>([]);
+  const [backElements, setBackElements] = useState<DesignElement[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
+  const [frontBackgroundUrl, setFrontBackgroundUrl] = useState<string | null>(null);
+  const [backBackgroundUrl, setBackBackgroundUrl] = useState<string | null>(null);
   const [zoom, setZoom] = useState(3);
   const [showGrid, setShowGrid] = useState(false);
   const [showSafeArea, setShowSafeArea] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const bgInputRef = useRef<HTMLInputElement>(null);
 
+  const elements = side === "front" ? frontElements : backElements;
+  const setElements = side === "front" ? setFrontElements : setBackElements;
+  const backgroundUrl = side === "front" ? frontBackgroundUrl : backBackgroundUrl;
+
   useEffect(() => {
     if (!id) return;
     getTemplate(id).then((t) => {
       setTemplate(t);
-      setElements(t.elements);
+      setFrontElements(t.elements);
+      setBackElements(t.back_elements ?? []);
       if (t.background_path) {
-        fetchTemplateBackgroundUrl(id).then(setBackgroundUrl);
+        fetchTemplateBackgroundUrl(id, "front").then(setFrontBackgroundUrl);
+      }
+      if (t.back_background_path) {
+        fetchTemplateBackgroundUrl(id, "back").then(setBackBackgroundUrl);
       }
     });
   }, [id]);
@@ -50,14 +66,17 @@ export default function TemplateDesigner() {
       setElements((prev) => [...prev, newElement]);
       setSelectedId(newElement.id);
     },
-    [elements]
+    [elements, setElements]
   );
 
-  const handleElementChange = useCallback((elementId: string, patch: Partial<DesignElement>) => {
-    setElements((prev) =>
-      prev.map((el) => (el.id === elementId ? ({ ...el, ...patch } as DesignElement) : el))
-    );
-  }, []);
+  const handleElementChange = useCallback(
+    (elementId: string, patch: Partial<DesignElement>) => {
+      setElements((prev) =>
+        prev.map((el) => (el.id === elementId ? ({ ...el, ...patch } as DesignElement) : el))
+      );
+    },
+    [setElements]
+  );
 
   function handleDelete() {
     if (!selectedId) return;
@@ -72,11 +91,16 @@ export default function TemplateDesigner() {
     handleElementChange(selectedId, { zIndex: direction === "front" ? maxZ + 1 : minZ - 1 });
   }
 
+  function handleSideChange(nextSide: TemplateSide) {
+    setSide(nextSide);
+    setSelectedId(null);
+  }
+
   async function handleSave() {
     if (!id) return;
     setIsSaving(true);
     try {
-      const updated = await updateTemplate(id, { elements });
+      const updated = await updateTemplate(id, { elements: frontElements, back_elements: backElements });
       setTemplate(updated);
     } finally {
       setIsSaving(false);
@@ -85,9 +109,10 @@ export default function TemplateDesigner() {
 
   async function handleBackgroundUpload(file: File) {
     if (!id) return;
-    await uploadTemplateBackground(id, file);
-    const url = await fetchTemplateBackgroundUrl(id);
-    setBackgroundUrl(url);
+    await uploadTemplateBackground(id, file, side);
+    const url = await fetchTemplateBackgroundUrl(id, side);
+    if (side === "front") setFrontBackgroundUrl(url);
+    else setBackBackgroundUrl(url);
   }
 
   if (!template) {
@@ -120,7 +145,7 @@ export default function TemplateDesigner() {
             }}
           />
           <button className="btn btn-secondary" onClick={() => bgInputRef.current?.click()}>
-            Upload background
+            Upload {side} background
           </button>
           <button className="btn btn-secondary" onClick={() => navigate("/templates")}>
             Back to templates
@@ -129,6 +154,31 @@ export default function TemplateDesigner() {
             {isSaving ? "Saving…" : "Save template"}
           </button>
         </div>
+      </div>
+
+      <div className="template-side-tabs" role="tablist" aria-label="Card side">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={side === "front"}
+          className={"template-side-tab" + (side === "front" ? " is-active" : "")}
+          onClick={() => handleSideChange("front")}
+        >
+          Front
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={side === "back"}
+          className={"template-side-tab" + (side === "back" ? " is-active" : "")}
+          onClick={() => handleSideChange("back")}
+        >
+          Back
+          {(backElements.length > 0 || backBackgroundUrl) && <span className="template-side-tab-dot" />}
+        </button>
+        <span className="template-side-tabs-hint">
+          Designing the {side} of the card — both sides share the same {"{{"}variable{"}}"} data.
+        </span>
       </div>
 
       <Toolbar

@@ -10,7 +10,7 @@ import {
   triggerCardDownload,
 } from "@/api/memberCards";
 import type { DocumentType, CustomerDetails } from "@/types/document";
-import type { Template } from "@/types/template";
+import { templateHasBackSide, type Template } from "@/types/template";
 import type { GeneratedCard } from "@/types/generatedCard";
 import "./CardGenerationWizard.css";
 
@@ -42,8 +42,11 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templateId, setTemplateId] = useState<string | null>(null);
 
-  // Step 4: preview
+  // Step 4: preview — back preview only exists when the chosen theme has
+  // a back design (templateHasBackSide); otherwise this stays null and
+  // the UI just shows the front.
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [backPreviewUrl, setBackPreviewUrl] = useState<string | null>(null);
 
   // Step 5: generated
   const [card, setCard] = useState<GeneratedCard | null>(null);
@@ -119,8 +122,14 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
     setIsBusy(true);
     setError(null);
     try {
-      const url = await previewCard(documentId, templateId);
+      const selectedTemplate = templates.find((t) => t.id === templateId);
+      const hasBack = selectedTemplate ? templateHasBackSide(selectedTemplate) : false;
+      const [url, backUrl] = await Promise.all([
+        previewCard(documentId, templateId, "front"),
+        hasBack ? previewCard(documentId, templateId, "back") : Promise.resolve(null),
+      ]);
       setPreviewUrl(url);
+      setBackPreviewUrl(backUrl);
       setStep(3);
     } catch (err: any) {
       setError(err?.response?.data?.detail || "Couldn't build a preview.");
@@ -149,6 +158,8 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
 
   async function handleDownload() {
     if (!card) return;
+    // The PDF already has both pages (front, then back) when the theme
+    // has a back design — a single file is what gets printed.
     await triggerCardDownload(card.id, `${cardTypeName.replace(/\s+/g, "_")}.pdf`);
   }
 
@@ -272,7 +283,18 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
       {step === 3 && previewUrl && (
         <div className="card-panel wizard-panel">
           <h2 style={{ marginTop: 0 }}>Preview</h2>
-          <img src={previewUrl} alt="Card preview" className="wizard-preview-image" />
+          <div className="wizard-preview-sides">
+            <div className="wizard-preview-side">
+              {backPreviewUrl && <p className="wizard-preview-side-label">Front</p>}
+              <img src={previewUrl} alt="Card preview — front" className="wizard-preview-image" />
+            </div>
+            {backPreviewUrl && (
+              <div className="wizard-preview-side">
+                <p className="wizard-preview-side-label">Back</p>
+                <img src={backPreviewUrl} alt="Card preview — back" className="wizard-preview-image" />
+              </div>
+            )}
+          </div>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <button className="btn btn-secondary" onClick={() => setStep(2)}>
               Back to themes
@@ -288,7 +310,10 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
         <div className="card-panel wizard-panel wizard-panel-success">
           <span className="section-placeholder-icon" style={{ margin: "0 auto var(--space-4)" }}>✓</span>
           <h2 style={{ marginTop: 0 }}>Your card is ready</h2>
-          <p className="dashboard-subtitle">1 credit was deducted from your account.</p>
+          <p className="dashboard-subtitle">
+            1 credit was deducted from your account.
+            {card.back_png_path && " Your PDF includes both the front and back of the card."}
+          </p>
           <button className="btn btn-primary" onClick={handleDownload}>
             Download PDF
           </button>

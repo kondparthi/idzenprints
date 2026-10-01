@@ -23,6 +23,13 @@ class GeneratedCard(Base, TimestampMixin):
     png_path = Column(String(500), nullable=True)
     jpg_path = Column(String(500), nullable=True)
 
+    # Back-side renders — only populated when the template has a back
+    # design; pdf_path already contains both pages in that case, these are
+    # just so the front/back PNG/JPG can each be previewed or downloaded
+    # on their own.
+    back_png_path = Column(String(500), nullable=True)
+    back_jpg_path = Column(String(500), nullable=True)
+
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     # See customer.py's docstring on owner_member_id — same reasoning here.
     owner_member_id = Column(String(36), ForeignKey("members.id"), nullable=True, index=True)

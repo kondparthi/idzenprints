@@ -43,6 +43,7 @@ export default function Templates() {
         height_mm: heightMm,
         dpi,
         elements: [],
+        back_elements: [],
       });
       navigate(`/templates/${template.id}/design`);
     } finally {

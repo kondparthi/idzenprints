@@ -47,6 +47,8 @@ class TemplateService:
             dpi=source.dpi,
             background_path=source.background_path,
             elements=source.elements,
+            back_background_path=source.back_background_path,
+            back_elements=source.back_elements,
             is_active=False,
             created_by=created_by,
         )

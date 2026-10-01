@@ -30,10 +30,10 @@ def _resolve_generated_path(relative_path: str) -> Path:
 
 
 @router.post("/preview")
-def preview_card(payload: GenerateCardRequest, db: Session = Depends(get_db)):
+def preview_card(payload: GenerateCardRequest, side: str = Query(default="front"), db: Session = Depends(get_db)):
     service = CardGenerationService(db)
     try:
-        png_bytes = service.preview_png_bytes(payload.customer_id, payload.template_id)
+        png_bytes = service.preview_png_bytes(payload.customer_id, payload.template_id, side=side)
     except (CustomerNotFoundError, TemplateNotFoundError) as exc:
         raise HTTPException(status_code=404, detail="Customer or template not found") from exc
     return Response(content=png_bytes, media_type="image/png")
@@ -72,7 +72,12 @@ def regenerate_card(
 
 
 @router.get("/{card_id}/download")
-def download_card(card_id: str, format: str = Query(default="pdf"), db: Session = Depends(get_db)):
+def download_card(
+    card_id: str,
+    format: str = Query(default="pdf"),
+    side: str = Query(default="front"),
+    db: Session = Depends(get_db),
+):
     if format not in _FORMAT_MEDIA_TYPES:
         raise HTTPException(status_code=400, detail="format must be one of: pdf, png, jpg")
 
@@ -81,7 +86,11 @@ def download_card(card_id: str, format: str = Query(default="pdf"), db: Session 
     except GeneratedCardNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Generated card not found") from exc
 
-    relative_path = {"pdf": card.pdf_path, "png": card.png_path, "jpg": card.jpg_path}[format]
+    paths = {
+        "front": {"pdf": card.pdf_path, "png": card.png_path, "jpg": card.jpg_path},
+        "back": {"pdf": card.pdf_path, "png": card.back_png_path, "jpg": card.back_jpg_path},
+    }
+    relative_path = paths.get(side, paths["front"])[format]
     if not relative_path:
         raise HTTPException(status_code=404, detail=f"No {format} has been generated for this card yet")
 

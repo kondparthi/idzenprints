@@ -32,16 +32,22 @@ export async function deleteTemplate(id: string): Promise<void> {
   await apiClient.delete(`/templates/${id}`);
 }
 
-export async function uploadTemplateBackground(id: string, file: File): Promise<Template> {
+export type TemplateSide = "front" | "back";
+
+export async function uploadTemplateBackground(id: string, file: File, side: TemplateSide = "front"): Promise<Template> {
   const formData = new FormData();
   formData.append("file", file);
   const { data } = await apiClient.post<Template>(`/templates/${id}/background`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
+    params: { side },
   });
   return data;
 }
 
-export async function fetchTemplateBackgroundUrl(id: string): Promise<string> {
-  const response = await apiClient.get(`/templates/${id}/background/file`, { responseType: "blob" });
+export async function fetchTemplateBackgroundUrl(id: string, side: TemplateSide = "front"): Promise<string> {
+  const response = await apiClient.get(`/templates/${id}/background/file`, {
+    responseType: "blob",
+    params: { side },
+  });
   return URL.createObjectURL(response.data as Blob);
 }

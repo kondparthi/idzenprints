@@ -15,6 +15,8 @@ class GeneratedCardOut(BaseModel):
     pdf_path: str | None
     png_path: str | None
     jpg_path: str | None
+    back_png_path: str | None
+    back_jpg_path: str | None
 
     class Config:
         from_attributes = True

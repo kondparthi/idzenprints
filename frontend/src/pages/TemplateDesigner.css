@@ -39,3 +39,42 @@
   border: 1px dashed var(--color-accent);
   pointer-events: none;
 }
+
+.template-side-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.template-side-tab {
+  position: relative;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: var(--radius-md);
+  background: var(--color-paper, #fff);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.template-side-tab.is-active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
+.template-side-tab-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+
+.template-side-tabs-hint {
+  color: var(--color-text-muted, #777);
+  font-size: 0.85rem;
+  margin-left: var(--space-2);
+}

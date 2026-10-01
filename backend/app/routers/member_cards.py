@@ -151,12 +151,13 @@ def list_templates(card_type_id: str = Query(...), db: Session = Depends(get_db)
 def preview_card(
     document_id: str = Query(...),
     template_id: str = Query(...),
+    side: str = Query(default="front"),
     current_member: Member = Depends(get_current_member),
     db: Session = Depends(get_db),
 ):
     customer = _assert_owns_document(document_id, current_member, db).customer_id
     try:
-        png_bytes = CardGenerationService(db).preview_png_bytes(customer, template_id)
+        png_bytes = CardGenerationService(db).preview_png_bytes(customer, template_id, side=side)
     except (CustomerNotFoundError, TemplateNotFoundError) as exc:
         raise HTTPException(status_code=404, detail="Couldn't build a preview — check the template") from exc
     return Response(content=png_bytes, media_type="image/png")
@@ -203,13 +204,18 @@ def generate_card(
 def download_card(
     card_id: str,
     format: str = Query(default="pdf"),
+    side: str = Query(default="front"),
     current_member: Member = Depends(get_current_member),
     db: Session = Depends(get_db),
 ):
     if format not in _FORMAT_MEDIA_TYPES:
         raise HTTPException(status_code=400, detail="format must be one of: pdf, png, jpg")
     card = _assert_owns_card(card_id, current_member, db)
-    relative_path = {"pdf": card.pdf_path, "png": card.png_path, "jpg": card.jpg_path}[format]
+    paths = {
+        "front": {"pdf": card.pdf_path, "png": card.png_path, "jpg": card.jpg_path},
+        "back": {"pdf": card.pdf_path, "png": card.back_png_path, "jpg": card.back_jpg_path},
+    }
+    relative_path = paths.get(side, paths["front"])[format]
     if not relative_path:
         raise HTTPException(status_code=404, detail=f"No {format} available for this card")
     path = _resolve_generated_path(relative_path)

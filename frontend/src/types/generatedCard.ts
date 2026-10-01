@@ -6,4 +6,6 @@ export interface GeneratedCard {
   pdf_path: string | null;
   png_path: string | null;
   jpg_path: string | null;
+  back_png_path: string | null;
+  back_jpg_path: string | null;
 }

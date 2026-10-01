@@ -70,33 +70,50 @@ def delete_template(template_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Template not found") from exc
 
 
+def _validate_side(side: str) -> str:
+    if side not in ("front", "back"):
+        raise HTTPException(status_code=400, detail="side must be 'front' or 'back'")
+    return side
+
+
 @router.post("/{template_id}/background", response_model=TemplateOut)
-def upload_background(template_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+def upload_background(
+    template_id: str,
+    file: UploadFile = File(...),
+    side: str = Query(default="front"),
+    db: Session = Depends(get_db),
+):
+    _validate_side(side)
     service = TemplateService(db)
     try:
         template = service.get_template(template_id)
     except TemplateNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Template not found") from exc
 
-    if template.background_path:
-        delete_stored_file(template.background_path)
+    path_field = "background_path" if side == "front" else "back_background_path"
+    existing_path = getattr(template, path_field)
+    if existing_path:
+        delete_stored_file(existing_path)
 
-    relative_path, _size, _mime = save_upload_file(file, subdir=f"templates/{template_id}")
-    template.background_path = relative_path
+    relative_path, _size, _mime = save_upload_file(file, subdir=f"templates/{template_id}/{side}")
+    setattr(template, path_field, relative_path)
     return service.repo.save(template)
 
 
 @router.get("/{template_id}/background/file")
-def get_background_file(template_id: str, db: Session = Depends(get_db)):
+def get_background_file(template_id: str, side: str = Query(default="front"), db: Session = Depends(get_db)):
+    _validate_side(side)
     try:
         template = TemplateService(db).get_template(template_id)
     except TemplateNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Template not found") from exc
 
-    if not template.background_path:
-        raise HTTPException(status_code=404, detail="This template has no background image")
+    path_field = "background_path" if side == "front" else "back_background_path"
+    relative_path = getattr(template, path_field)
+    if not relative_path:
+        raise HTTPException(status_code=404, detail=f"This template has no {side} background image")
 
-    path = resolve_stored_path(template.background_path)
+    path = resolve_stored_path(relative_path)
     if not path.exists():
         raise HTTPException(status_code=404, detail="Stored file is missing")
     return FileResponse(path)
