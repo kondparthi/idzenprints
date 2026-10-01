@@ -26,3 +26,27 @@
   font-weight: 600;
   padding: 0;
 }
+
+.required-mark {
+  color: var(--color-danger, #c0392b);
+}
+
+.card-sides-options {
+  display: flex;
+  gap: var(--space-5);
+  margin-top: var(--space-2);
+}
+
+.card-sides-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.field-hint {
+  margin: var(--space-2) 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #777);
+}

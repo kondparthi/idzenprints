@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   fetchTemplateBackgroundUrl,
   getTemplate,
@@ -20,6 +20,13 @@ const BASE_PX_PER_MM = 4;
 export default function TemplateDesigner() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Set once, right after "New template" → "Create & open designer", from
+  // the mandatory single/double choice there. Purely a one-time nudge —
+  // whether the template actually ends up single- or double-sided is
+  // decided by what's on the Back tab when it's saved, not by this.
+  const wantsDoubleSide = searchParams.get("sides") === "double";
+  const [showBackNudge, setShowBackNudge] = useState(wantsDoubleSide);
 
   const [template, setTemplate] = useState<Template | null>(null);
   // Front and back are tracked as separate element lists/backgrounds —
@@ -155,6 +162,20 @@ export default function TemplateDesigner() {
           </button>
         </div>
       </div>
+
+      {showBackNudge && side === "front" && (
+        <div className="template-back-nudge">
+          <span>You said this card needs a back design — don't forget to switch over and design it before saving.</span>
+          <div className="template-back-nudge-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => handleSideChange("back")}>
+              Switch to Back tab
+            </button>
+            <button type="button" className="link-action" onClick={() => setShowBackNudge(false)}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="template-side-tabs" role="tablist" aria-label="Card side">
         <button

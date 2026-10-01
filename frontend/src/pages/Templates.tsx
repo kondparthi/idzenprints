@@ -16,6 +16,10 @@ export default function Templates() {
   const [widthMm, setWidthMm] = useState(85.6);
   const [heightMm, setHeightMm] = useState(53.98);
   const [dpi, setDpi] = useState(300);
+  // Mandatory — an admin must say up front whether this card needs a
+  // back design at all, so "Create & open designer" is disabled until
+  // one of the two is picked (see the radio group below).
+  const [cardSides, setCardSides] = useState<"single" | "double" | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Template | null>(null);
 
@@ -33,7 +37,7 @@ export default function Templates() {
 
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
-    if (!name.trim() || !cardTypeId) return;
+    if (!name.trim() || !cardTypeId || !cardSides) return;
     setIsSubmitting(true);
     try {
       const template = await createTemplate({
@@ -45,7 +49,11 @@ export default function Templates() {
         elements: [],
         back_elements: [],
       });
-      navigate(`/templates/${template.id}/design`);
+      // Carries the admin's choice into the designer so it knows whether
+      // to nudge them toward the Back tab — the template itself stays
+      // single- or double-sided based on what actually ends up on the
+      // back, not this flag, so nothing is locked in by this choice.
+      navigate(`/templates/${template.id}/design?sides=${cardSides}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -120,7 +128,37 @@ export default function Templates() {
             <input id="tDpi" type="number" value={dpi} onChange={(e) => setDpi(Number(e.target.value))} />
           </div>
         </div>
-        <button className="btn btn-primary" type="submit" disabled={isSubmitting || !cardTypeId}>
+        <div className="field">
+          <label>
+            Card sides <span className="required-mark">*</span>
+          </label>
+          <div className="card-sides-options">
+            <label className="card-sides-option">
+              <input
+                type="radio"
+                name="cardSides"
+                value="single"
+                checked={cardSides === "single"}
+                onChange={() => setCardSides("single")}
+                required
+              />
+              Single side only
+            </label>
+            <label className="card-sides-option">
+              <input
+                type="radio"
+                name="cardSides"
+                value="double"
+                checked={cardSides === "double"}
+                onChange={() => setCardSides("double")}
+                required
+              />
+              Front &amp; back (double side)
+            </label>
+          </div>
+          {!cardSides && <p className="field-hint">Pick one to continue — this just opens the designer on the right tab; you can still add or skip the back later.</p>}
+        </div>
+        <button className="btn btn-primary" type="submit" disabled={isSubmitting || !cardTypeId || !cardSides}>
           {isSubmitting ? "Creating…" : "Create & open designer"}
         </button>
       </form>
