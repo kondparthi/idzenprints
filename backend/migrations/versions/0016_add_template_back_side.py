@@ -18,10 +18,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("templates", sa.Column("back_background_path", sa.String(length=500), nullable=True))
-    op.add_column(
-        "templates",
-        sa.Column("back_elements", sa.JSON(), nullable=False, server_default="[]"),
-    )
+    # MySQL doesn't allow a DEFAULT clause on JSON/BLOB/TEXT columns at
+    # all (error 1101) — add it nullable first, backfill existing rows,
+    # then tighten to NOT NULL, instead of a server_default.
+    op.add_column("templates", sa.Column("back_elements", sa.JSON(), nullable=True))
+    op.execute("UPDATE templates SET back_elements = '[]' WHERE back_elements IS NULL")
+    op.alter_column("templates", "back_elements", existing_type=sa.JSON(), nullable=False)
 
 
 def downgrade() -> None:
