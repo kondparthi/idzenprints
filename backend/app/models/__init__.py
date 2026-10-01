@@ -5,6 +5,7 @@ from app.models.customer_details import CustomerDetails  # noqa: F401
 from app.models.card_type import CardType  # noqa: F401
 from app.models.template import Template  # noqa: F401
 from app.models.generated_card import GeneratedCard  # noqa: F401
+from app.models.print_bucket_item import PrintBucketItem  # noqa: F401
 from app.models.order import Order, OrderStatus  # noqa: F401
 from app.models.audit_log import AuditLog  # noqa: F401
 from app.models.product_category import ProductCategory  # noqa: F401

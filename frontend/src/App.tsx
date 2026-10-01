@@ -43,6 +43,8 @@ import PackageForm from "@/pages/PackageForm";
 import Subscriptions from "@/pages/Subscriptions";
 import MemberSessions from "@/pages/MemberSessions";
 import CreditLedger from "@/pages/CreditLedger";
+import PrintBucket from "@/pages/PrintBucket";
+import { PrintBucketProvider } from "@/print-bucket/PrintBucketContext";
 
 export default function App() {
   return (
@@ -71,8 +73,15 @@ export default function App() {
       <Route path="/login" element={<Login />} />
 
       <Route element={<ProtectedRoute />}>
-        <Route element={<AppLayout />}>
+        <Route
+          element={
+            <PrintBucketProvider>
+              <AppLayout />
+            </PrintBucketProvider>
+          }
+        >
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/print-bucket" element={<PrintBucket />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/members" element={<Members />} />
           <Route path="/customers/new" element={<CustomerForm />} />

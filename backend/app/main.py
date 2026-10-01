@@ -22,6 +22,7 @@ from app.routers import (
     members,
     orders,
     packages,
+    print_bucket,
     product_categories,
     products,
     public,
@@ -68,6 +69,7 @@ app.include_router(public.router)
 app.include_router(storefront.router)
 app.include_router(guest_orders.router)
 app.include_router(member_sessions.router)
+app.include_router(print_bucket.router)
 
 
 @app.get("/api/health")

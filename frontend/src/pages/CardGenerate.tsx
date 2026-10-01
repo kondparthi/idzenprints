@@ -6,6 +6,8 @@ import { listCardTypes } from "@/api/cardTypes";
 import { listTemplates } from "@/api/templates";
 import { downloadCard, generateCard, getBoxImageDataUrl, previewCard, type FieldImageOverrides } from "@/api/cards";
 import { listCustomerDetailsForCustomer, updateCustomerDetails } from "@/api/customerDetails";
+import { addToBucket } from "@/api/printBucket";
+import { usePrintBucket } from "@/print-bucket/PrintBucketContext";
 import type { Customer } from "@/types/customer";
 import type { CardType } from "@/types/cardType";
 import type { Template } from "@/types/template";
@@ -59,6 +61,10 @@ export default function CardGenerate() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { refresh: refreshBucketCount } = usePrintBucket();
+  const [isAddingToBucket, setIsAddingToBucket] = useState(false);
+  const [addedToBucket, setAddedToBucket] = useState(false);
+
   // Confirm-by-image: before printing, staff drag a server-rendered
   // snapshot of each card box onto its spot on the preview. Dropping it
   // correctly both confirms the placement AND locks that exact image in —
@@ -100,6 +106,7 @@ export default function CardGenerate() {
     setGeneratedCard(null);
     setLockedBoxes(new Set());
     setBoxImages({});
+    setAddedToBucket(false);
   }, [cardTypeId]);
 
   // A different template changes which boxes even appear on the card, and
@@ -376,10 +383,26 @@ export default function CardGenerate() {
     try {
       const card = await generateCard(customerId, templateId, buildOverrides());
       setGeneratedCard(card);
+      setAddedToBucket(false);
     } catch {
       setError("Card generation failed.");
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  async function handleAddToBucket() {
+    if (!generatedCard) return;
+    setError(null);
+    setIsAddingToBucket(true);
+    try {
+      await addToBucket(generatedCard.id);
+      setAddedToBucket(true);
+      refreshBucketCount();
+    } catch {
+      setError("Couldn't add this card to the print bucket. Try again.");
+    } finally {
+      setIsAddingToBucket(false);
     }
   }
 
@@ -651,7 +674,19 @@ export default function CardGenerate() {
 
         <div className="card-panel card-preview-panel">
           {previewUrl ? (
-            <div className="card-preview-sides">
+            <div className="card-preview-panel-inner">
+              {generatedCard && (
+                <div className="card-preview-panel-header">
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleAddToBucket}
+                    disabled={isAddingToBucket || addedToBucket}
+                  >
+                    {addedToBucket ? "✓ Added to bucket" : isAddingToBucket ? "Adding…" : "Add to bucket"}
+                  </button>
+                </div>
+              )}
+              <div className="card-preview-sides">
               <div className="card-preview-side">
                 {backPreviewUrl && <p className="card-preview-side-label">Front</p>}
                 <div
@@ -738,6 +773,7 @@ export default function CardGenerate() {
                   )}
                 </div>
               )}
+              </div>
             </div>
           ) : (
             <p className="empty-state">Choose a customer and template, then click Preview.</p>

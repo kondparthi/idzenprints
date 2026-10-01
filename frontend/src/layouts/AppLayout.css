@@ -69,6 +69,21 @@
   color: #fff;
 }
 
+.app-nav-badge {
+  margin-left: auto;
+  background: var(--color-accent, #2F6B12);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+}
+
+.app-nav-link.active .app-nav-badge {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 .app-main {
   display: flex;
   flex-direction: column;

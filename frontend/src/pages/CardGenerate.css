@@ -51,6 +51,16 @@
   }
 }
 
+.card-preview-panel-inner {
+  width: 100%;
+}
+
+.card-preview-panel-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+
 .card-preview-sides {
   display: flex;
   flex-wrap: wrap;

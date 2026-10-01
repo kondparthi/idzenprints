@@ -64,6 +64,20 @@ export async function regenerateCard(cardId: string): Promise<GeneratedCard> {
 }
 
 /**
+ * Fetches a generated card's PNG as a blob URL for inline display (the
+ * endpoint requires an Authorization header, so a plain <img src> pointing
+ * straight at it won't work). Caller should revoke the URL when done with
+ * it (e.g. on unmount) to avoid leaking blob memory.
+ */
+export async function getCardImageUrl(cardId: string, side: "front" | "back" = "front"): Promise<string> {
+  const response = await apiClient.get(`/cards/${cardId}/download`, {
+    params: { format: "png", side },
+    responseType: "blob",
+  });
+  return URL.createObjectURL(response.data as Blob);
+}
+
+/**
  * Downloads a generated card format by fetching it as a blob (the endpoint
  * requires an Authorization header, so a plain <a href> can't be used) and
  * triggering a browser save via a temporary link.

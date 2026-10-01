@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { usePrintBucket } from "@/print-bucket/PrintBucketContext";
 import idzenIcon from "@/assets/brand/idzen-icon.png";
 import "./AppLayout.css";
 
@@ -75,6 +76,7 @@ const NAV_ITEMS = [
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
+  const { count: bucketCount } = usePrintBucket();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -123,6 +125,13 @@ export default function AppLayout() {
               {item.label}
             </NavLink>
           ))}
+          <NavLink to="/print-bucket" className={({ isActive }) => "app-nav-link" + (isActive ? " active" : "")}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2l1.5 5M18 2l-1.5 5M3.5 7h17l-1.6 12.2a2 2 0 01-2 1.8H7.1a2 2 0 01-2-1.8L3.5 7zM9 11v5M15 11v5" />
+            </svg>
+            Print bucket
+            {bucketCount > 0 && <span className="app-nav-badge">{bucketCount}</span>}
+          </NavLink>
         </nav>
       </aside>
       <div className="app-main">
