@@ -151,6 +151,64 @@
   cursor: grab;
   border-bottom: 1px dashed var(--color-accent, #5b4fe9);
   padding-bottom: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-value-text {
+  white-space: pre-wrap;
+}
+
+.detail-edit-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--color-text-muted, #999);
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.detail-edit-btn:hover {
+  color: var(--color-accent, #5b4fe9);
+}
+
+.extracted-details-row-editing {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.extracted-details-row-editing dt {
+  margin-bottom: 4px;
+}
+
+.detail-edit-form {
+  max-width: 100%;
+  text-align: left;
+}
+
+.detail-edit-form input,
+.detail-edit-form textarea {
+  width: 100%;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.detail-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: 6px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
 }
 
 .detail-draggable:active {

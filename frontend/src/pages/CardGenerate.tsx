@@ -5,12 +5,12 @@ import { listCustomers } from "@/api/customers";
 import { listCardTypes } from "@/api/cardTypes";
 import { listTemplates } from "@/api/templates";
 import { downloadCard, generateCard, previewCard } from "@/api/cards";
-import { listCustomerDetailsForCustomer } from "@/api/customerDetails";
+import { listCustomerDetailsForCustomer, updateCustomerDetails } from "@/api/customerDetails";
 import type { Customer } from "@/types/customer";
 import type { CardType } from "@/types/cardType";
 import type { Template } from "@/types/template";
 import type { GeneratedCard } from "@/types/generatedCard";
-import type { CustomerDetails } from "@/types/document";
+import type { CustomerDetails, CustomerDetailsInput } from "@/types/document";
 import { templateHasBackSide } from "@/types/template";
 import { findFieldBoxes, isPointInBoxes, type FieldBox } from "@/utils/fieldPlacement";
 import "./CardGenerate.css";
@@ -59,6 +59,14 @@ export default function CardGenerate() {
   const [dropFlash, setDropFlash] = useState<{ key: string; ok: boolean; side: "front" | "back" } | null>(null);
   const frontImgRef = useRef<HTMLImageElement | null>(null);
   const backImgRef = useRef<HTMLImageElement | null>(null);
+
+  // Inline text correction: fixing a field (e.g. OCR-garbled address_local)
+  // right here, instead of having to navigate to the Document Detail page
+  // and come back. This edits the text itself — separate from drag-to-verify,
+  // which only checks where a field lands, never what it says.
+  const [editingKey, setEditingKey] = useState<keyof CustomerDetails | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   useEffect(() => {
     listCustomers("", 1, 100).then((r) => setCustomers(r.items));
@@ -199,6 +207,44 @@ export default function CardGenerate() {
     };
   }
 
+  function startEditingField(field: keyof CustomerDetails) {
+    setEditingKey(field);
+    setEditValue((extractedDetails?.[field] as string | null) ?? "");
+  }
+
+  function cancelEditingField() {
+    setEditingKey(null);
+    setEditValue("");
+  }
+
+  async function saveEditingField() {
+    if (!editingKey || !extractedDetails) return;
+    setIsSavingEdit(true);
+    try {
+      const updated = await updateCustomerDetails(extractedDetails.id, {
+        [editingKey]: editValue,
+      } as CustomerDetailsInput);
+      setExtractedDetails(updated);
+      // The text changed, so any earlier drag-confirmation for this field no
+      // longer proves anything — and if a preview is already on screen, it's
+      // now showing the old text, so re-render it with the correction.
+      setVerifiedFields((prev) => {
+        const next = new Set(prev);
+        next.delete(editingKey);
+        return next;
+      });
+      setEditingKey(null);
+      setEditValue("");
+      if (previewUrl) {
+        await handlePreview();
+      }
+    } catch {
+      setError("Couldn't save that correction. Try again.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
   async function handleGenerate() {
     if (!customerId || !templateId) {
       setError("Choose a customer and a template first.");
@@ -337,6 +383,52 @@ export default function CardGenerate() {
                       const value = extractedDetails[field.key] as string | null;
                       const isDraggable = previewUrl && draggableFieldKeys.includes(field.key);
                       const isVerified = verifiedFields.has(field.key);
+                      const isEditing = editingKey === field.key;
+                      const isMultiline = field.key === "address" || field.key === "address_local";
+
+                      if (isEditing) {
+                        return (
+                          <div key={field.key} className="extracted-details-row extracted-details-row-editing">
+                            <dt>{field.label}</dt>
+                            <dd className="detail-edit-form">
+                              {isMultiline ? (
+                                <textarea
+                                  rows={3}
+                                  autoFocus
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                />
+                              ) : (
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                />
+                              )}
+                              <div className="detail-edit-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={cancelEditingField}
+                                  disabled={isSavingEdit}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  onClick={saveEditingField}
+                                  disabled={isSavingEdit}
+                                >
+                                  {isSavingEdit ? "Saving…" : "Save"}
+                                </button>
+                              </div>
+                            </dd>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div key={field.key} className="extracted-details-row">
                           <dt>{field.label}</dt>
@@ -349,7 +441,15 @@ export default function CardGenerate() {
                             }
                             title={isDraggable ? "Drag onto the card preview to confirm it's in the right place" : undefined}
                           >
-                            {value || "—"}
+                            <span className="detail-value-text">{value || "—"}</span>
+                            <button
+                              type="button"
+                              className="detail-edit-btn"
+                              title="Edit this field's text"
+                              onClick={() => startEditingField(field.key)}
+                            >
+                              <i className="bi bi-pencil"></i>
+                            </button>
                             {isVerified && <span className="detail-verified-badge">✓ Confirmed</span>}
                           </dd>
                         </div>
