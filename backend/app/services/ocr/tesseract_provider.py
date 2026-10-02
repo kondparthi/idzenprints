@@ -59,37 +59,6 @@ def _clean_pdf_text(text: str) -> str:
     text = _MULTI_SPACE.sub(" ", text)
     return text
 
-
-# Tesseract's default page-segmentation mode (fully automatic layout
-# analysis, tuned for scanned pages — headers, paragraphs, columns) can
-# actively *drop* whole text blocks on a small ID-card image, rather than
-# just reading them in a worse order. Tested directly against a real
-# ration card: the default mode silently lost every field from "District"
-# onward (the area next to the card's QR code), while --psm 6 ("assume a
-# single uniform block of text") kept all of it, just with some OCR noise
-# to clean up downstream in field_extraction.py. This affects every
-# document type, not just ration cards — an ID card is never a multi-
-# column page, so "single text block" is the right assumption everywhere
-# this provider is used.
-_OCR_CONFIG = "--psm 6"
-
-# A small card photo or a cropped screenshot OCRs far worse than a proper
-# scan — fine print (a card's small printed labels) blurs away below a
-# certain pixel size. Upscaling before OCR (not just for on-screen display)
-# measurably recovers text a direct read would otherwise drop or garble,
-# confirmed against the same real ration card referenced above.
-_OCR_MIN_DIMENSION_PX = 1500
-
-
-def _upscale_for_ocr(image: "Image.Image") -> "Image.Image":
-    longest_side = max(image.width, image.height)
-    if longest_side >= _OCR_MIN_DIMENSION_PX:
-        return image
-    scale = _OCR_MIN_DIMENSION_PX / longest_side
-    new_size = (round(image.width * scale), round(image.height * scale))
-    return image.resize(new_size, Image.LANCZOS)
-
-
 _WINDOWS_DEFAULT_PATHS = [
     r"C:\Program Files\Tesseract-OCR\tesseract.exe",
     r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
@@ -140,12 +109,21 @@ class TesseractOCRProvider(OCRProvider):
         return self._extract_image_text(path)
 
     def _extract_image_text(self, path: Path) -> str:
+        # Tried --psm 6 + upscaling here (treat the card as one uniform
+        # text block, and enlarge it before OCR) on the theory that
+        # Tesseract's default page-segmentation was dropping text blocks
+        # near a card's QR code. It tested well against a degraded proxy
+        # image (a screenshot re-encoded and cropped) but made real results
+        # measurably worse — correct fields (Head of the Family, Village)
+        # came back truncated/garbled that hadn't been before. Reverted:
+        # plain default Tesseract behavior is more reliable here than that
+        # guess was, even though it still leaves District/Residential
+        # Address blank on some cards.
         settings = get_settings()
         languages = settings.OCR_LANGUAGES or "eng"
         with Image.open(path) as image:
-            image = _upscale_for_ocr(image)
             try:
-                return pytesseract.image_to_string(image, lang=languages, config=_OCR_CONFIG)
+                return pytesseract.image_to_string(image, lang=languages)
             except pytesseract.TesseractError:
                 if languages == "eng":
                     raise
@@ -155,7 +133,7 @@ class TesseractOCRProvider(OCRProvider):
                 # still gets processed instead of failing outright; the
                 # operator can still fill in the regional-script fields by
                 # hand, same as any other field OCR misses.
-                return pytesseract.image_to_string(image, lang="eng", config=_OCR_CONFIG)
+                return pytesseract.image_to_string(image, lang="eng")
 
     def _extract_pdf_text(self, path: Path, password: Optional[str] = None) -> str:
         try:
