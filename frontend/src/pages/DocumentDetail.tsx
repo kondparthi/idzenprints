@@ -94,6 +94,10 @@ export default function DocumentDetail() {
         vid_number: details.vid_number ?? undefined,
         issue_date: details.issue_date ?? undefined,
         details_as_on: details.details_as_on ?? undefined,
+        fp_shop_no: details.fp_shop_no ?? undefined,
+        village: details.village ?? undefined,
+        mandal: details.mandal ?? undefined,
+        district: details.district ?? undefined,
         is_verified: markVerified,
       });
       setDetails(updated);
@@ -181,100 +185,170 @@ export default function DocumentDetail() {
                 Correct anything OCR missed or got wrong before generating a card.
               </p>
 
-              <div className="field">
-                <label htmlFor="name">Name</label>
-                <input
-                  id="name"
-                  value={details.name ?? ""}
-                  onChange={(e) => setDetails({ ...details, name: e.target.value })}
-                />
-              </div>
+              {document.document_type === "fsc" ? (
+                <>
+                  <div className="field">
+                    <label htmlFor="headOfFamily">Head of the Family</label>
+                    <input
+                      id="headOfFamily"
+                      value={details.name ?? ""}
+                      onChange={(e) => setDetails({ ...details, name: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field">
-                <label htmlFor="nameLocal">Name (regional script)</label>
-                <input
-                  id="nameLocal"
-                  value={details.name_local ?? ""}
-                  onChange={(e) => setDetails({ ...details, name_local: e.target.value })}
-                />
-              </div>
+                  <div className="field">
+                    <label htmlFor="rationCardNo">Ration Card No.</label>
+                    <input
+                      id="rationCardNo"
+                      value={details.document_number ?? ""}
+                      onChange={(e) => setDetails({ ...details, document_number: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field">
-                <label htmlFor="dob">Date of birth</label>
-                <input
-                  id="dob"
-                  placeholder="DD/MM/YYYY"
-                  value={details.dob ?? ""}
-                  onChange={(e) => setDetails({ ...details, dob: e.target.value })}
-                />
-              </div>
+                  <div className="field">
+                    <label htmlFor="fpShopNo">FP Shop No.</label>
+                    <input
+                      id="fpShopNo"
+                      value={details.fp_shop_no ?? ""}
+                      onChange={(e) => setDetails({ ...details, fp_shop_no: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field">
-                <label htmlFor="gender">Gender</label>
-                <input
-                  id="gender"
-                  value={details.gender ?? ""}
-                  onChange={(e) => setDetails({ ...details, gender: e.target.value })}
-                />
-              </div>
+                  <div className="field">
+                    <label htmlFor="village">Village</label>
+                    <input
+                      id="village"
+                      value={details.village ?? ""}
+                      onChange={(e) => setDetails({ ...details, village: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field">
-                <label htmlFor="documentNumber">Document number</label>
-                <input
-                  id="documentNumber"
-                  value={details.document_number ?? ""}
-                  onChange={(e) => setDetails({ ...details, document_number: e.target.value })}
-                />
-              </div>
+                  <div className="field">
+                    <label htmlFor="mandal">Mandal</label>
+                    <input
+                      id="mandal"
+                      value={details.mandal ?? ""}
+                      onChange={(e) => setDetails({ ...details, mandal: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field">
-                <label htmlFor="vidNumber">VID number</label>
-                <input
-                  id="vidNumber"
-                  value={details.vid_number ?? ""}
-                  onChange={(e) => setDetails({ ...details, vid_number: e.target.value })}
-                />
-              </div>
+                  <div className="field">
+                    <label htmlFor="district">District</label>
+                    <input
+                      id="district"
+                      value={details.district ?? ""}
+                      onChange={(e) => setDetails({ ...details, district: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field">
-                <label htmlFor="issueDate">Aadhaar no. issued</label>
-                <input
-                  id="issueDate"
-                  placeholder="DD/MM/YYYY"
-                  value={details.issue_date ?? ""}
-                  onChange={(e) => setDetails({ ...details, issue_date: e.target.value })}
-                />
-              </div>
+                  <div className="field">
+                    <label htmlFor="residentialAddress">Residential Address</label>
+                    <textarea
+                      id="residentialAddress"
+                      rows={3}
+                      value={details.address ?? ""}
+                      onChange={(e) => setDetails({ ...details, address: e.target.value })}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="field">
+                    <label htmlFor="name">Name</label>
+                    <input
+                      id="name"
+                      value={details.name ?? ""}
+                      onChange={(e) => setDetails({ ...details, name: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field">
-                <label htmlFor="detailsAsOn">Details as on</label>
-                <input
-                  id="detailsAsOn"
-                  placeholder="DD/MM/YYYY"
-                  value={details.details_as_on ?? ""}
-                  onChange={(e) => setDetails({ ...details, details_as_on: e.target.value })}
-                />
-              </div>
+                  <div className="field">
+                    <label htmlFor="nameLocal">Name (regional script)</label>
+                    <input
+                      id="nameLocal"
+                      value={details.name_local ?? ""}
+                      onChange={(e) => setDetails({ ...details, name_local: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field">
-                <label htmlFor="address">Address</label>
-                <textarea
-                  id="address"
-                  rows={3}
-                  value={details.address ?? ""}
-                  onChange={(e) => setDetails({ ...details, address: e.target.value })}
-                />
-              </div>
+                  <div className="field">
+                    <label htmlFor="dob">Date of birth</label>
+                    <input
+                      id="dob"
+                      placeholder="DD/MM/YYYY"
+                      value={details.dob ?? ""}
+                      onChange={(e) => setDetails({ ...details, dob: e.target.value })}
+                    />
+                  </div>
 
-              <div className="field">
-                <label htmlFor="addressLocal">Address (regional script)</label>
-                <textarea
-                  id="addressLocal"
-                  rows={3}
-                  value={details.address_local ?? ""}
-                  onChange={(e) => setDetails({ ...details, address_local: e.target.value })}
-                />
-              </div>
+                  <div className="field">
+                    <label htmlFor="gender">Gender</label>
+                    <input
+                      id="gender"
+                      value={details.gender ?? ""}
+                      onChange={(e) => setDetails({ ...details, gender: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="documentNumber">Document number</label>
+                    <input
+                      id="documentNumber"
+                      value={details.document_number ?? ""}
+                      onChange={(e) => setDetails({ ...details, document_number: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="vidNumber">VID number</label>
+                    <input
+                      id="vidNumber"
+                      value={details.vid_number ?? ""}
+                      onChange={(e) => setDetails({ ...details, vid_number: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="issueDate">Aadhaar no. issued</label>
+                    <input
+                      id="issueDate"
+                      placeholder="DD/MM/YYYY"
+                      value={details.issue_date ?? ""}
+                      onChange={(e) => setDetails({ ...details, issue_date: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="detailsAsOn">Details as on</label>
+                    <input
+                      id="detailsAsOn"
+                      placeholder="DD/MM/YYYY"
+                      value={details.details_as_on ?? ""}
+                      onChange={(e) => setDetails({ ...details, details_as_on: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="address">Address</label>
+                    <textarea
+                      id="address"
+                      rows={3}
+                      value={details.address ?? ""}
+                      onChange={(e) => setDetails({ ...details, address: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="addressLocal">Address (regional script)</label>
+                    <textarea
+                      id="addressLocal"
+                      rows={3}
+                      value={details.address_local ?? ""}
+                      onChange={(e) => setDetails({ ...details, address_local: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
 
               {details.is_verified && <p className="verified-note">Verified — ready for card generation.</p>}
 

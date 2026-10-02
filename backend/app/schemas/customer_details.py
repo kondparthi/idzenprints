@@ -17,6 +17,10 @@ class CustomerDetailsOut(BaseModel):
     vid_number: Optional[str]
     issue_date: Optional[str]
     details_as_on: Optional[str]
+    fp_shop_no: Optional[str]
+    village: Optional[str]
+    mandal: Optional[str]
+    district: Optional[str]
     photo_path: Optional[str]
     is_verified: bool
 
@@ -35,4 +39,8 @@ class CustomerDetailsUpdate(BaseModel):
     vid_number: Optional[str] = None
     issue_date: Optional[str] = None
     details_as_on: Optional[str] = None
+    fp_shop_no: Optional[str] = None
+    village: Optional[str] = None
+    mandal: Optional[str] = None
+    district: Optional[str] = None
     is_verified: Optional[bool] = None

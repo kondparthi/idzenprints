@@ -37,6 +37,10 @@ const DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
   { key: "details_as_on", label: "Details as on" },
   { key: "address", label: "Address" },
   { key: "address_local", label: "Address (regional script)" },
+  { key: "fp_shop_no", label: "FP Shop No." },
+  { key: "village", label: "Village" },
+  { key: "mandal", label: "Mandal" },
+  { key: "district", label: "District" },
 ];
 
 export default function CardGenerate() {

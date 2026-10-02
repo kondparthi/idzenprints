@@ -42,6 +42,10 @@ def _merge_ocr_results(front: OCRExtractionResult, back: Optional[OCRExtractionR
         # covers it either way without assuming which side has which.
         issue_date=front.issue_date or back.issue_date,
         details_as_on=front.details_as_on or back.details_as_on,
+        fp_shop_no=front.fp_shop_no or back.fp_shop_no,
+        village=front.village or back.village,
+        mandal=front.mandal or back.mandal,
+        district=front.district or back.district,
         raw_text=f"{front.raw_text or ''}\n{back.raw_text or ''}".strip(),
     )
 
@@ -143,6 +147,10 @@ class DocumentService:
             existing.vid_number = result.vid_number
             existing.issue_date = result.issue_date
             existing.details_as_on = result.details_as_on
+            existing.fp_shop_no = result.fp_shop_no
+            existing.village = result.village
+            existing.mandal = result.mandal
+            existing.district = result.district
             existing.is_verified = False
             return self.details_repo.save(existing)
 
@@ -159,6 +167,10 @@ class DocumentService:
             vid_number=result.vid_number,
             issue_date=result.issue_date,
             details_as_on=result.details_as_on,
+            fp_shop_no=result.fp_shop_no,
+            village=result.village,
+            mandal=result.mandal,
+            district=result.district,
             is_verified=False,
         )
         return self.details_repo.create(details)

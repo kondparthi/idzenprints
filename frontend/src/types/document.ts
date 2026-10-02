@@ -36,6 +36,10 @@ export interface CustomerDetails {
   vid_number: string | null;
   issue_date: string | null;
   details_as_on: string | null;
+  fp_shop_no: string | null;
+  village: string | null;
+  mandal: string | null;
+  district: string | null;
   photo_path: string | null;
   is_verified: boolean;
 }
@@ -51,5 +55,9 @@ export interface CustomerDetailsInput {
   vid_number?: string;
   issue_date?: string;
   details_as_on?: string;
+  fp_shop_no?: string;
+  village?: string;
+  mandal?: string;
+  district?: string;
   is_verified?: boolean;
 }

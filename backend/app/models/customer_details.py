@@ -34,6 +34,17 @@ class CustomerDetails(Base, TimestampMixin):
     # an operator must be able to save a partial correction.
     issue_date = Column(String(20), nullable=True)
     details_as_on = Column(String(20), nullable=True)
+
+    # FSC / Ration card only. The card's holder name, number, and address
+    # are already covered by name/document_number/address above (a ration
+    # card's "Head of the Family" and "Ration Card No." are just this
+    # document type's names for the same two generic fields) — these four
+    # are the fields a ration card has that nothing else does.
+    fp_shop_no = Column(String(50), nullable=True)
+    village = Column(String(100), nullable=True)
+    mandal = Column(String(100), nullable=True)
+    district = Column(String(100), nullable=True)
+
     # Path relative to settings.UPLOAD_DIR — never a publicly reachable URL.
     photo_path = Column(String(500), nullable=True)
 

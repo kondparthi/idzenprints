@@ -30,6 +30,10 @@ def resolve_card_variables(customer: Customer, details: Optional[CustomerDetails
         "vid_number": (details.vid_number if details else "") or "",
         "issue_date": (details.issue_date if details else "") or "",
         "details_as_on": (details.details_as_on if details else "") or "",
+        "fp_shop_no": (details.fp_shop_no if details else "") or "",
+        "village": (details.village if details else "") or "",
+        "mandal": (details.mandal if details else "") or "",
+        "district": (details.district if details else "") or "",
     }
     for field in _UNRESOLVED_PLACEHOLDER_FIELDS:
         data[field] = document_number or "" if field in ("fsc_number", "employee_id", "student_id") else ""

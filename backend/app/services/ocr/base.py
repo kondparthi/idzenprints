@@ -20,6 +20,15 @@ class OCRExtractionResult:
     vid_number: Optional[str] = None
     issue_date: Optional[str] = None
     details_as_on: Optional[str] = None
+    # FSC / Ration card only — no heuristic extracts these yet (see
+    # field_extraction.py, which is tuned for Aadhaar layouts), so they
+    # always come back None today. Declared here so the merge/upsert
+    # pipeline in document_service.py already carries them end-to-end,
+    # ready for a ration-card-specific extractor to fill in later.
+    fp_shop_no: Optional[str] = None
+    village: Optional[str] = None
+    mandal: Optional[str] = None
+    district: Optional[str] = None
     raw_text: Optional[str] = None
 
 
