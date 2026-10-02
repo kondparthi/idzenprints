@@ -29,7 +29,7 @@ from pypdf.errors import FileNotDecryptedError, WrongPasswordError
 
 from app.config.settings import get_settings
 from app.services.ocr.base import OCRExtractionResult, OCRProvider
-from app.services.ocr.field_extraction import extract_fields_from_text
+from app.services.ocr.field_extraction import extract_fields_from_text, extract_ration_card_fields
 
 
 class PdfPasswordRequiredError(Exception):
@@ -93,9 +93,13 @@ _resolve_tesseract_cmd()
 
 
 class TesseractOCRProvider(OCRProvider):
-    def extract(self, file_path: str, password: Optional[str] = None) -> OCRExtractionResult:
+    def extract(
+        self, file_path: str, password: Optional[str] = None, document_type: Optional[str] = None
+    ) -> OCRExtractionResult:
         path = Path(file_path)
         raw_text = self._extract_text(path, password)
+        if document_type == "fsc":
+            return extract_ration_card_fields(raw_text)
         return extract_fields_from_text(raw_text)
 
     def _extract_text(self, path: Path, password: Optional[str] = None) -> str:

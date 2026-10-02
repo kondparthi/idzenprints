@@ -157,6 +157,68 @@ def _extract_local_address(lines: list[str], english_address_label_index: int | 
     return " ".join(reversed(collected)).strip() or None
 
 
+# --- FSC / Ration card ---------------------------------------------------
+# Unlike Aadhaar, a Telangana ration card is a conventional "label : value"
+# layout — each field prints on its own line (often with the Telugu label
+# first, like "గ్రామం/Village : vivek nagar"), so matching on the English
+# label and taking the rest of that line is enough; no name/address
+# position heuristics needed.
+_RATION_NO_PATTERN = re.compile(r"Ration\s*Card\s*No\.?\s*[:\-]?\s*(\d[\d\s]{5,})", re.IGNORECASE)
+_HEAD_OF_FAMILY_PATTERN = re.compile(r"Head\s*of\s*the\s*Family\s*[:\-]?\s*(.+)", re.IGNORECASE)
+_FP_SHOP_PATTERN = re.compile(r"FP\s*Shop\s*No\.?\s*[:\-]?\s*(\d[\d\s]{2,})", re.IGNORECASE)
+_VILLAGE_PATTERN = re.compile(r"Village\s*[:\-]?\s*(.+)", re.IGNORECASE)
+_MANDAL_PATTERN = re.compile(r"Mandal\s*[:\-]?\s*(.+)", re.IGNORECASE)
+_DISTRICT_PATTERN = re.compile(r"District\s*[:\-]?\s*(.+)", re.IGNORECASE)
+_RESIDENTIAL_ADDRESS_PATTERN = re.compile(r"Residential\s*Address\s*[:\-]?\s*(.*)", re.IGNORECASE)
+_RATION_ADDRESS_STOP_PATTERN = re.compile(r"^\s*$|QR|Signature|Issuing\s*Authority", re.IGNORECASE)
+
+
+def _first_line_match(lines: list[str], pattern: re.Pattern) -> tuple[str | None, int | None]:
+    for i, line in enumerate(lines):
+        match = pattern.search(line)
+        if match:
+            value = match.group(1).strip().strip(":-").strip()
+            return (value or None), i
+    return None, None
+
+
+def _collect_address_block(lines: list[str], label_index: int, first_value: str | None) -> str | None:
+    collected = [first_value] if first_value else []
+    for next_line in lines[label_index + 1 : label_index + 4]:
+        stripped = next_line.strip()
+        if not stripped or _RATION_ADDRESS_STOP_PATTERN.search(stripped):
+            break
+        collected.append(stripped)
+    joined = " ".join(part for part in collected if part).strip()
+    return joined or None
+
+
+def extract_ration_card_fields(raw_text: str) -> OCRExtractionResult:
+    text = raw_text or ""
+    lines = text.split("\n")
+
+    ration_no, _ = _first_line_match(lines, _RATION_NO_PATTERN)
+    head_of_family, _ = _first_line_match(lines, _HEAD_OF_FAMILY_PATTERN)
+    fp_shop_no, _ = _first_line_match(lines, _FP_SHOP_PATTERN)
+    village, _ = _first_line_match(lines, _VILLAGE_PATTERN)
+    mandal, _ = _first_line_match(lines, _MANDAL_PATTERN)
+    district, _ = _first_line_match(lines, _DISTRICT_PATTERN)
+    address_value, address_index = _first_line_match(lines, _RESIDENTIAL_ADDRESS_PATTERN)
+
+    address = _collect_address_block(lines, address_index, address_value) if address_index is not None else None
+
+    return OCRExtractionResult(
+        name=head_of_family,
+        document_number=re.sub(r"\s+", "", ration_no) if ration_no else None,
+        address=address,
+        fp_shop_no=re.sub(r"\s+", "", fp_shop_no) if fp_shop_no else None,
+        village=village,
+        mandal=mandal,
+        district=district,
+        raw_text=text,
+    )
+
+
 def extract_fields_from_text(raw_text: str) -> OCRExtractionResult:
     text = raw_text or ""
     lines = text.split("\n")

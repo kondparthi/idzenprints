@@ -121,10 +121,17 @@ class DocumentService:
 
         try:
             provider = get_ocr_provider()
-            front_result = provider.extract(str(resolve_stored_path(document.stored_path)), password=password)
+            document_type_value = document.document_type.value if document.document_type else None
+            front_result = provider.extract(
+                str(resolve_stored_path(document.stored_path)), password=password, document_type=document_type_value
+            )
             back_result = None
             if document.back_stored_path:
-                back_result = provider.extract(str(resolve_stored_path(document.back_stored_path)), password=password)
+                back_result = provider.extract(
+                    str(resolve_stored_path(document.back_stored_path)),
+                    password=password,
+                    document_type=document_type_value,
+                )
             result = _merge_ocr_results(front_result, back_result)
         except Exception as exc:  # noqa: BLE001 - any OCR failure must not crash the request
             document.status = DocumentStatus.FAILED
