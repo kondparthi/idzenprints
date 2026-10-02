@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { listCustomers } from "@/api/customers";
 import { listCardTypes } from "@/api/cardTypes";
 import { listTemplates } from "@/api/templates";
+import { listDocuments } from "@/api/documents";
 import { downloadCard, generateCard, getBoxImageDataUrl, previewCard, type FieldImageOverrides } from "@/api/cards";
 import { listCustomerDetailsForCustomer, updateCustomerDetails } from "@/api/customerDetails";
 import { addToBucket } from "@/api/printBucket";
@@ -12,7 +13,7 @@ import type { Customer } from "@/types/customer";
 import type { CardType } from "@/types/cardType";
 import type { Template } from "@/types/template";
 import type { GeneratedCard } from "@/types/generatedCard";
-import type { CustomerDetails, CustomerDetailsInput } from "@/types/document";
+import type { CustomerDetails, CustomerDetailsInput, DocumentRecord } from "@/types/document";
 import { templateHasBackSide } from "@/types/template";
 import { findDraggableElements, isPointInBoxes, type DraggableElementBox } from "@/utils/fieldPlacement";
 import "./CardGenerate.css";
@@ -26,6 +27,13 @@ function boxKey(side: Side, elementId: string): string {
   return `${side}:${elementId}`;
 }
 
+// The full superset of fields a template's elements can bind to via
+// {{field}} tokens. Used for matching template content against the
+// customer's data (filledKeys, fieldLabelsForElement) — this stays the
+// full list regardless of card type, since a template could in principle
+// reference any field. What's actually *displayed* in the "Extracted
+// details" summary below is narrowed by card type — see
+// AADHAAR_DETAIL_FIELDS / RATION_CARD_DETAIL_FIELDS and displayFields.
 const DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
   { key: "name", label: "Name" },
   { key: "name_local", label: "Name (regional script)" },
@@ -43,6 +51,31 @@ const DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
   { key: "district", label: "District" },
 ];
 
+const AADHAAR_DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
+  { key: "name", label: "Name" },
+  { key: "name_local", label: "Name (regional script)" },
+  { key: "dob", label: "Date of birth" },
+  { key: "gender", label: "Gender" },
+  { key: "document_number", label: "Document number" },
+  { key: "vid_number", label: "VID number" },
+  { key: "issue_date", label: "Aadhaar no. issued" },
+  { key: "details_as_on", label: "Details as on" },
+  { key: "address", label: "Address" },
+  { key: "address_local", label: "Address (regional script)" },
+];
+
+// Mirrors DocumentDetail.tsx / CustomerForm.tsx's field set for an
+// FSC/Ration Card.
+const RATION_CARD_DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
+  { key: "name", label: "Head of the Family" },
+  { key: "document_number", label: "Ration Card No." },
+  { key: "fp_shop_no", label: "FP Shop No." },
+  { key: "village", label: "Village" },
+  { key: "mandal", label: "Mandal" },
+  { key: "district", label: "District" },
+  { key: "address", label: "Residential Address" },
+];
+
 export default function CardGenerate() {
   const [searchParams] = useSearchParams();
 
@@ -57,6 +90,7 @@ export default function CardGenerate() {
   const [extractedDetails, setExtractedDetails] = useState<CustomerDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [hasCheckedDetails, setHasCheckedDetails] = useState(false);
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [backPreviewUrl, setBackPreviewUrl] = useState<string | null>(null);
@@ -130,6 +164,7 @@ export default function CardGenerate() {
     setHasCheckedDetails(false);
     setLockedBoxes(new Set());
     setBoxImages({});
+    setDocuments([]);
     if (!customerId) return;
 
     setIsLoadingDetails(true);
@@ -142,9 +177,19 @@ export default function CardGenerate() {
         setIsLoadingDetails(false);
         setHasCheckedDetails(true);
       });
+    listDocuments(customerId, 1, 50).then((result) => setDocuments(result.items));
   }, [customerId]);
 
   const selectedTemplate = templates.find((t) => t.id === templateId) ?? null;
+
+  // Which field set to show in "Extracted details" depends on the card's
+  // source document, not the card type the user picked — CardType (the
+  // admin-configurable category tied to templates, e.g. "FSC / Ration
+  // Card") has no structural link to DocumentType (the enum on uploaded
+  // documents). So look up the document the extracted details came from,
+  // the same way CustomerForm.tsx's "Edit customer" page does.
+  const sourceDocumentType = documents.find((doc) => doc.id === extractedDetails?.document_id)?.document_type;
+  const displayFields = sourceDocumentType === "fsc" ? RATION_CARD_DETAIL_FIELDS : AADHAAR_DETAIL_FIELDS;
 
   // Only fields that actually have a value are worth asking staff to
   // confirm — an empty field has nothing to snapshot (the completeness
@@ -527,7 +572,7 @@ export default function CardGenerate() {
               ) : extractedDetails ? (
                 <>
                   <dl className="extracted-details-list">
-                    {DETAIL_FIELDS.map((field) => {
+                    {displayFields.map((field) => {
                       const value = extractedDetails[field.key] as string | null;
                       const isEditing = editingKey === field.key;
                       const isMultiline = field.key === "address" || field.key === "address_local";
