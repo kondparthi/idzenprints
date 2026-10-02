@@ -31,6 +31,8 @@ export default function DocumentDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRawText, setShowRawText] = useState(false);
+  const [rawTextCopied, setRawTextCopied] = useState(false);
 
   async function loadDocument() {
     if (!id) return;
@@ -184,6 +186,37 @@ export default function DocumentDetail() {
               <p className="document-form-hint">
                 Correct anything OCR missed or got wrong before generating a card.
               </p>
+
+              {document.ocr_raw_text && (
+                <div className="raw-ocr-panel">
+                  <button
+                    type="button"
+                    className="link-toggle"
+                    onClick={() => setShowRawText((v) => !v)}
+                  >
+                    {showRawText ? "Hide" : "View"} raw OCR text
+                  </button>
+                  {showRawText && (
+                    <div className="raw-ocr-box">
+                      <div className="raw-ocr-box-actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={async () => {
+                            if (!document.ocr_raw_text) return;
+                            await navigator.clipboard.writeText(document.ocr_raw_text);
+                            setRawTextCopied(true);
+                            window.setTimeout(() => setRawTextCopied(false), 1500);
+                          }}
+                        >
+                          {rawTextCopied ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                      <pre className="raw-ocr-text">{document.ocr_raw_text}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {document.document_type === "fsc" ? (
                 <>

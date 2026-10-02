@@ -140,6 +140,7 @@ class DocumentService:
             raise
 
         document.status = DocumentStatus.PROCESSED
+        document.ocr_raw_text = result.raw_text
         self.repo.save(document)
 
         existing = self.details_repo.get_by_document_id(document_id)

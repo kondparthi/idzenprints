@@ -20,6 +20,7 @@ export interface DocumentRecord {
   has_back: boolean;
   back_mime_type: string | null;
   processing_error: string | null;
+  ocr_raw_text: string | null;
 }
 
 export interface CustomerDetails {

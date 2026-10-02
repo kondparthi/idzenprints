@@ -50,6 +50,11 @@ class Document(Base, TimestampMixin):
 
     uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     processing_error = Column(Text, nullable=True)
+    # The raw, unparsed OCR text (front+back merged) from the most recent
+    # "Run OCR" — kept so staff (and whoever is debugging a bad extraction)
+    # can see exactly what Tesseract actually read, without needing a
+    # screenshot of the card to reconstruct it.
+    ocr_raw_text = Column(Text, nullable=True)
 
     customer = relationship("Customer", backref="documents")
 

@@ -16,6 +16,7 @@ class DocumentOut(BaseModel):
     has_back: bool = False
     back_mime_type: Optional[str] = None
     processing_error: Optional[str] = None
+    ocr_raw_text: Optional[str] = None
 
     class Config:
         from_attributes = True
