@@ -163,14 +163,27 @@ def _extract_local_address(lines: list[str], english_address_label_index: int | 
 # first, like "గ్రామం/Village : vivek nagar"), so matching on the English
 # label and taking the rest of that line is enough; no name/address
 # position heuristics needed.
-_RATION_NO_PATTERN = re.compile(r"Ration\s*Card\s*No\.?\s*[:\-]?\s*(\d[\d\s]{5,})", re.IGNORECASE)
+# Digit fields deliberately don't allow embedded whitespace in the match —
+# allowing it (to tolerate a card printing a number in grouped digits, e.g.
+# "3653 7084 2352") also means a stray OCR character a few spaces further
+# along — misread card-border noise, or the start of the next field — gets
+# silently absorbed into the number instead of stopping there.
+#   [^\d\n]{0,6}? tolerates a short run of OCR noise between the label and
+# its digits (a smudge, a stray glyph from a nearby caption) without it
+# swallowing something further down the card.
+_RATION_NO_PATTERN = re.compile(r"Ration\s*Card\s*No\.?\s*[^\d\n]{0,6}?(\d{4,})", re.IGNORECASE)
 _HEAD_OF_FAMILY_PATTERN = re.compile(r"Head\s*of\s*the\s*Family\s*[:\-]?\s*(.+)", re.IGNORECASE)
-_FP_SHOP_PATTERN = re.compile(r"FP\s*Shop\s*No\.?\s*[:\-]?\s*(\d[\d\s]{2,})", re.IGNORECASE)
+_FP_SHOP_PATTERN = re.compile(r"FP\s*Shop\s*No\.?\s*[^\d\n]{0,6}?(\d{3,})", re.IGNORECASE)
 _VILLAGE_PATTERN = re.compile(r"Village\s*[:\-]?\s*(.+)", re.IGNORECASE)
 _MANDAL_PATTERN = re.compile(r"Mandal\s*[:\-]?\s*(.+)", re.IGNORECASE)
 _DISTRICT_PATTERN = re.compile(r"District\s*[:\-]?\s*(.+)", re.IGNORECASE)
 _RESIDENTIAL_ADDRESS_PATTERN = re.compile(r"Residential\s*Address\s*[:\-]?\s*(.*)", re.IGNORECASE)
 _RATION_ADDRESS_STOP_PATTERN = re.compile(r"^\s*$|QR|Signature|Issuing\s*Authority", re.IGNORECASE)
+
+# A misread cell border, bullet, or stray punctuation mark sometimes lands
+# right before an otherwise-correct value (e.g. "| K.v. Rangareddy") —
+# strip any such run of non-alphanumeric characters off the front.
+_LEADING_NOISE_PATTERN = re.compile(r"^[^A-Za-z0-9ఀ-౿]+")
 
 
 def _first_line_match(lines: list[str], pattern: re.Pattern) -> tuple[str | None, int | None]:
@@ -178,6 +191,7 @@ def _first_line_match(lines: list[str], pattern: re.Pattern) -> tuple[str | None
         match = pattern.search(line)
         if match:
             value = match.group(1).strip().strip(":-").strip()
+            value = _LEADING_NOISE_PATTERN.sub("", value).strip()
             return (value or None), i
     return None, None
 
@@ -209,9 +223,9 @@ def extract_ration_card_fields(raw_text: str) -> OCRExtractionResult:
 
     return OCRExtractionResult(
         name=head_of_family,
-        document_number=re.sub(r"\s+", "", ration_no) if ration_no else None,
+        document_number=ration_no,
         address=address,
-        fp_shop_no=re.sub(r"\s+", "", fp_shop_no) if fp_shop_no else None,
+        fp_shop_no=fp_shop_no,
         village=village,
         mandal=mandal,
         district=district,
