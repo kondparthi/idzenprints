@@ -26,6 +26,20 @@ const DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
   { key: "address_local", label: "Address (regional script)" },
 ];
 
+// Mirrors DocumentDetail.tsx's field set for an FSC/Ration Card — same
+// generic fields relabeled (name -> Head of the Family, document_number ->
+// Ration Card No., address -> Residential Address), plus the four fields
+// only a ration card has.
+const RATION_CARD_DETAIL_FIELDS: { key: keyof CustomerDetails; label: string }[] = [
+  { key: "name", label: "Head of the Family" },
+  { key: "document_number", label: "Ration Card No." },
+  { key: "fp_shop_no", label: "FP Shop No." },
+  { key: "village", label: "Village" },
+  { key: "mandal", label: "Mandal" },
+  { key: "district", label: "District" },
+  { key: "address", label: "Residential Address" },
+];
+
 export default function CustomerForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
@@ -149,7 +163,10 @@ export default function CustomerForm() {
           {extractedDetails ? (
             <div className="card-panel extracted-details-summary">
               <dl className="extracted-details-list">
-                {DETAIL_FIELDS.map((field) => (
+                {(documents.find((doc) => doc.id === extractedDetails.document_id)?.document_type === "fsc"
+                  ? RATION_CARD_DETAIL_FIELDS
+                  : DETAIL_FIELDS
+                ).map((field) => (
                   <div key={field.key} className="extracted-details-row">
                     <dt>{field.label}</dt>
                     <dd>{(extractedDetails[field.key] as string) || "—"}</dd>
