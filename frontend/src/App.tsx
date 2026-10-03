@@ -44,6 +44,7 @@ import Subscriptions from "@/pages/Subscriptions";
 import MemberSessions from "@/pages/MemberSessions";
 import CreditLedger from "@/pages/CreditLedger";
 import PrintBucket from "@/pages/PrintBucket";
+import PrintCards from "@/pages/PrintCards";
 import { PrintBucketProvider } from "@/print-bucket/PrintBucketContext";
 
 export default function App() {
@@ -82,6 +83,7 @@ export default function App() {
         >
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/print-bucket" element={<PrintBucket />} />
+          <Route path="/print-cards" element={<PrintCards />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/members" element={<Members />} />
           <Route path="/customers/new" element={<CustomerForm />} />

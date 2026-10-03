@@ -132,6 +132,12 @@ export default function AppLayout() {
             Print bucket
             {bucketCount > 0 && <span className="app-nav-badge">{bucketCount}</span>}
           </NavLink>
+          <NavLink to="/print-cards" className={({ isActive }) => "app-nav-link" + (isActive ? " active" : "")}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15V6a2 2 0 00-2-2H5a2 2 0 00-2 2v9m18 0a2 2 0 01-2 2H5a2 2 0 01-2-2m18 0l-5.5-5.5M3 15l5.5-5.5M9 15h6" />
+            </svg>
+            Print cards
+          </NavLink>
         </nav>
       </aside>
       <div className="app-main">
