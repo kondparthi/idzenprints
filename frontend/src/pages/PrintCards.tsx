@@ -5,6 +5,7 @@ import {
   deleteUploadedCard,
   getUploadedCardImageUrl,
   listUploadedCards,
+  previewUploadedCardSheet,
   printUploadedCardSheet,
 } from "@/api/uploadedCards";
 import type { CardType } from "@/types/cardType";
@@ -21,6 +22,9 @@ export default function PrintCards() {
   const [cardTypes, setCardTypes] = useState<CardType[]>([]);
   const [cardTypeId, setCardTypeId] = useState("");
 
+  // The table below shows every uploaded card across every card type (so
+  // a sheet can mix Aadhaar + Ration + PAN together) — only the upload
+  // form itself is scoped to the selected card type.
   const [library, setLibrary] = useState<UploadedCard[]>([]);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
@@ -33,29 +37,28 @@ export default function PrintCards() {
 
   const [copies, setCopies] = useState<Record<string, number>>({});
   const [paperSize, setPaperSize] = useState("a4");
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [previewPages, setPreviewPages] = useState<string[] | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function loadLibrary() {
+    setIsLoadingLibrary(true);
+    listUploadedCards()
+      .then(setLibrary)
+      .finally(() => setIsLoadingLibrary(false));
+  }
 
   useEffect(() => {
     listCardTypes().then((types) => {
       setCardTypes(types);
       if (types.length > 0) setCardTypeId((prev) => prev || types[0].id);
     });
+    loadLibrary();
   }, []);
 
-  useEffect(() => {
-    if (!cardTypeId) {
-      setLibrary([]);
-      return;
-    }
-    setIsLoadingLibrary(true);
-    listUploadedCards(cardTypeId)
-      .then(setLibrary)
-      .finally(() => setIsLoadingLibrary(false));
-  }, [cardTypeId]);
-
   // Fetch a front thumbnail for every library card that doesn't have one
-  // yet — mirrors the Print bucket page's thumbnail loading.
+  // yet.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -75,8 +78,19 @@ export default function PrintCards() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [library]);
 
+  function cardTypeName(id: string): string {
+    return cardTypes.find((ct) => ct.id === id)?.name ?? "—";
+  }
+
   function selectedCardTypeName(): string {
-    return cardTypes.find((ct) => ct.id === cardTypeId)?.name ?? "";
+    return cardTypeName(cardTypeId);
+  }
+
+  // Any change to what's being printed invalidates whatever preview is on
+  // screen, so staff never look at a preview that doesn't match the
+  // current copy counts/paper size anymore.
+  function invalidatePreview() {
+    setPreviewPages(null);
   }
 
   async function handleUpload(event: FormEvent) {
@@ -110,29 +124,43 @@ export default function PrintCards() {
       delete next[id];
       return next;
     });
+    invalidatePreview();
   }
 
   function setCardCopies(id: string, value: number) {
     const clamped = Math.max(0, Math.min(100, Math.round(value) || 0));
     setCopies((prev) => ({ ...prev, [id]: clamped }));
+    invalidatePreview();
   }
 
   const queued = library.filter((c) => (copies[c.id] ?? 0) > 0);
   const totalCards = queued.reduce((sum, c) => sum + (copies[c.id] ?? 0), 0);
+  const queuedItems = () => queued.map((c) => ({ uploaded_card_id: c.id, copies: copies[c.id] ?? 0 }));
 
-  async function handlePrint() {
+  async function handlePreview() {
     if (queued.length === 0) return;
     setError(null);
-    setIsPrinting(true);
+    setIsPreviewing(true);
     try {
-      await printUploadedCardSheet(
-        queued.map((c) => ({ uploaded_card_id: c.id, copies: copies[c.id] ?? 0 })),
-        paperSize
-      );
+      const pages = await previewUploadedCardSheet(queuedItems(), paperSize);
+      setPreviewPages(pages);
+    } catch {
+      setError("Couldn't build a preview. Try again.");
+    } finally {
+      setIsPreviewing(false);
+    }
+  }
+
+  async function handleDownload() {
+    if (queued.length === 0) return;
+    setError(null);
+    setIsDownloading(true);
+    try {
+      await printUploadedCardSheet(queuedItems(), paperSize);
     } catch {
       setError("Couldn't build the print sheet. Try again.");
     } finally {
-      setIsPrinting(false);
+      setIsDownloading(false);
     }
   }
 
@@ -149,7 +177,7 @@ export default function PrintCards() {
 
       <div className="card-panel print-cards-toolbar">
         <div className="field">
-          <label htmlFor="cardType">Card type</label>
+          <label htmlFor="cardType">Upload into card type</label>
           <select id="cardType" value={cardTypeId} onChange={(e) => setCardTypeId(e.target.value)}>
             {cardTypes.length === 0 && <option value="">No card types yet</option>}
             {cardTypes.map((ct) => (
@@ -204,48 +232,73 @@ export default function PrintCards() {
         </form>
       )}
 
+      <h2 className="print-cards-section-title">All uploaded cards</h2>
+
       {isLoadingLibrary ? (
         <p className="field-hint">Loading…</p>
       ) : library.length === 0 ? (
         <div className="card-panel print-cards-empty">
-          <p>No card designs uploaded for {selectedCardTypeName() || "this card type"} yet.</p>
+          <p>No card designs uploaded yet.</p>
           <p className="field-hint">Use "+ Upload card design" above to add one.</p>
         </div>
       ) : (
         <>
-          <div className="print-cards-list">
-            {library.map((card) => (
-              <div key={card.id} className={"card-panel print-cards-item" + ((copies[card.id] ?? 0) > 0 ? " print-cards-item-selected" : "")}>
-                {thumbs[card.id] ? (
-                  <img src={thumbs[card.id]} alt={card.name} className="print-cards-thumb" />
-                ) : (
-                  <div className="print-cards-thumb print-cards-thumb-loading">…</div>
-                )}
-                <div className="print-cards-meta">
-                  <p className="print-cards-name">{card.name}</p>
-                  <p className="field-hint">{card.has_back ? "front & back" : "front only"}</p>
-                </div>
-                <label className="print-cards-copies">
-                  Copies
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={copies[card.id] ?? 0}
-                    onChange={(e) => setCardCopies(card.id, Number(e.target.value))}
-                  />
-                </label>
-                <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(card.id)}>
-                  Delete
-                </button>
-              </div>
-            ))}
+          <div className="card-panel print-cards-table-panel">
+            <table className="customers-table">
+              <thead>
+                <tr>
+                  <th aria-label="Front" />
+                  <th>Name</th>
+                  <th>Card type</th>
+                  <th>Sides</th>
+                  <th>Copies to print</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {library.map((card) => (
+                  <tr key={card.id} className={(copies[card.id] ?? 0) > 0 ? "print-cards-row-selected" : ""}>
+                    <td>
+                      {thumbs[card.id] ? (
+                        <img src={thumbs[card.id]} alt={card.name} className="print-cards-thumb" />
+                      ) : (
+                        <div className="print-cards-thumb print-cards-thumb-loading">…</div>
+                      )}
+                    </td>
+                    <td>{card.name}</td>
+                    <td>{cardTypeName(card.card_type_id)}</td>
+                    <td>{card.has_back ? "Front & back" : "Front only"}</td>
+                    <td>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        className="print-cards-copies-input"
+                        value={copies[card.id] ?? 0}
+                        onChange={(e) => setCardCopies(card.id, Number(e.target.value))}
+                      />
+                    </td>
+                    <td className="customers-row-actions">
+                      <button className="link-danger" onClick={() => handleDelete(card.id)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           <div className="card-panel print-cards-print-bar">
             <label className="print-cards-paper-size">
               Paper size
-              <select value={paperSize} onChange={(e) => setPaperSize(e.target.value)}>
+              <select
+                value={paperSize}
+                onChange={(e) => {
+                  setPaperSize(e.target.value);
+                  invalidatePreview();
+                }}
+              >
                 {PAPER_SIZES.map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
@@ -253,10 +306,29 @@ export default function PrintCards() {
                 ))}
               </select>
             </label>
-            <button className="btn btn-primary" onClick={handlePrint} disabled={totalCards === 0 || isPrinting}>
-              {isPrinting ? "Building PDF…" : `Print ${totalCards} card${totalCards === 1 ? "" : "s"}`}
+            <button className="btn btn-secondary" onClick={handlePreview} disabled={totalCards === 0 || isPreviewing}>
+              {isPreviewing ? "Building preview…" : `Preview ${totalCards} card${totalCards === 1 ? "" : "s"}`}
+            </button>
+            <button className="btn btn-primary" onClick={handleDownload} disabled={totalCards === 0 || isDownloading}>
+              {isDownloading ? "Building PDF…" : "Download PDF"}
             </button>
           </div>
+
+          {previewPages && (
+            <div className="print-cards-preview">
+              <h2 className="print-cards-section-title">
+                Sheet preview — {previewPages.length} page{previewPages.length === 1 ? "" : "s"}
+              </h2>
+              <div className="print-cards-preview-pages">
+                {previewPages.map((src, i) => (
+                  <div key={i} className="card-panel print-cards-preview-page">
+                    <p className="field-hint">Page {i + 1}</p>
+                    <img src={src} alt={`Sheet preview page ${i + 1}`} className="print-cards-preview-image" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

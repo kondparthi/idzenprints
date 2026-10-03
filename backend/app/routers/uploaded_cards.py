@@ -3,6 +3,8 @@ The "Print pre-designed cards" module: a reusable library of already-
 designed card images (front/back) per card type, and a print-sheet
 endpoint that composites a chosen set of them onto A4/A3 pages.
 """
+import base64
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -102,3 +104,21 @@ def print_uploaded_card_sheet(payload: UploadedCardPrintSheetRequest, db: Sessio
         raise HTTPException(status_code=404, detail=f"Uploaded card(s) not found: {exc}") from exc
 
     return Response(content=pdf_bytes, media_type="application/pdf")
+
+
+@router.post("/print-sheet/preview")
+def preview_uploaded_card_sheet(payload: UploadedCardPrintSheetRequest, db: Session = Depends(get_db)):
+    """Same layout as /print-sheet, but returns each page as a PNG (base64,
+    JSON) so the UI can show "this is what will print" before the operator
+    commits to downloading the PDF."""
+    service = UploadedCardSheetService(db)
+    try:
+        png_pages = service.build_preview_images(payload.items, payload.paper_size)
+    except UnsupportedPaperSizeError as exc:
+        raise HTTPException(status_code=400, detail=f"Unsupported paper size '{exc}'") from exc
+    except EmptySheetRequestError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except UploadedCardNotFoundForSheetError as exc:
+        raise HTTPException(status_code=404, detail=f"Uploaded card(s) not found: {exc}") from exc
+
+    return {"pages": [base64.b64encode(p).decode("ascii") for p in png_pages]}

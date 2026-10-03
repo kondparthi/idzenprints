@@ -44,6 +44,19 @@ export async function getUploadedCardImageUrl(id: string, side: "front" | "back"
 }
 
 /**
+ * Renders the same layout as printUploadedCardSheet but as PNG page
+ * images (data: URIs) instead of a PDF — for an on-screen "this is what
+ * will print" preview before committing to the download.
+ */
+export async function previewUploadedCardSheet(items: PrintSheetItem[], paperSize = "a4"): Promise<string[]> {
+  const { data } = await apiClient.post<{ pages: string[] }>("/uploaded-cards/print-sheet/preview", {
+    items,
+    paper_size: paperSize,
+  });
+  return data.pages.map((base64) => `data:image/png;base64,${base64}`);
+}
+
+/**
  * Renders the selected library cards (each with its own copy count) as one
  * multi-page PDF — front and back side by side in an auto-tiled grid sized
  * to the chosen paper — and triggers a browser save.

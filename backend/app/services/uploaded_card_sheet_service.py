@@ -70,6 +70,40 @@ class UploadedCardSheetService:
         return path if path.exists() else None
 
     def build_print_sheet(self, items: list[PrintSheetItemRequest], paper_size: str = "a4") -> bytes:
+        pages = self._build_pages(items, paper_size)
+        buffer = io.BytesIO()
+        pages[0].save(
+            buffer,
+            format="PDF",
+            resolution=float(_SHEET_DPI),
+            save_all=True,
+            append_images=pages[1:],
+        )
+        return buffer.getvalue()
+
+    def build_preview_images(self, items: list[PrintSheetItemRequest], paper_size: str = "a4") -> list[bytes]:
+        """Same layout as build_print_sheet, but returns each page as a
+        standalone PNG — for showing "this is what will print" in the UI
+        before committing to a PDF download."""
+        pages = self._build_pages(items, paper_size)
+        png_pages: list[bytes] = []
+        for page in pages:
+            buffer = io.BytesIO()
+            # A full 300dpi page is overkill for an on-screen preview and
+            # slow to ship over the wire — downscale to a reasonable
+            # preview width while keeping the page's proportions.
+            preview = page
+            max_preview_w = 900
+            if preview.width > max_preview_w:
+                scale = max_preview_w / preview.width
+                preview = preview.resize(
+                    (max_preview_w, max(1, round(preview.height * scale))), Image.LANCZOS
+                )
+            preview.save(buffer, format="PNG")
+            png_pages.append(buffer.getvalue())
+        return png_pages
+
+    def _build_pages(self, items: list[PrintSheetItemRequest], paper_size: str = "a4") -> list[Image.Image]:
         paper_size = (paper_size or "a4").lower()
         if paper_size not in PAPER_SIZES_MM:
             raise UnsupportedPaperSizeError(paper_size)
@@ -125,15 +159,7 @@ class UploadedCardSheetService:
                 self._place_card(page, card, block_x, block_y, cell_w, cell_h, fb_gutter)
             pages.append(page)
 
-        buffer = io.BytesIO()
-        pages[0].save(
-            buffer,
-            format="PDF",
-            resolution=float(_SHEET_DPI),
-            save_all=True,
-            append_images=pages[1:],
-        )
-        return buffer.getvalue()
+        return pages
 
     def _place_card(
         self,
