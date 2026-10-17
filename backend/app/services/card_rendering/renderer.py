@@ -119,7 +119,9 @@ def _render_text_element(element: dict[str, Any], box_w: int, box_h: int, dpi: i
 
     text = substitute_variables(element.get("text", ""), data)
     font_size_px = mm_to_px(float(element.get("fontSize", 4)), dpi)
-    font = get_font_for_text(text, bool(element.get("bold")), bool(element.get("italic")), font_size_px)
+    font = get_font_for_text(
+        text, bool(element.get("bold")), bool(element.get("italic")), font_size_px, element.get("fontFamily")
+    )
     color = element.get("color", "#000000")
     align = element.get("align", "left")
     line_height = float(element.get("lineHeight", 1.2))
@@ -159,7 +161,13 @@ def _render_text_element(element: dict[str, Any], box_w: int, box_h: int, dpi: i
 
 def _render_qr_element(element: dict[str, Any], box_w: int, box_h: int, data: dict[str, str]) -> Image.Image:
     value = substitute_variables(element.get("value", ""), data) or " "
-    qr_img = qrcode.make(value).convert("RGBA")
+    # quietZone = border in modules (qrcode's default is 4). A template can
+    # set a smaller one (e.g. 0) when the QR must fill its box edge to edge.
+    border = max(0, int(element.get("quietZone", 4)))
+    qr = qrcode.QRCode(border=border)
+    qr.add_data(value)
+    qr.make(fit=True)
+    qr_img = qr.make_image().convert("RGBA")
     return qr_img.resize((box_w, box_h), Image.NEAREST)
 
 
@@ -207,9 +215,12 @@ def render_element_layer(
     if element_type == "barcode":
         return _render_barcode_element(element, box_w, box_h, data)
     if element_type == "rectangle":
-        layer = Image.new("RGBA", (box_w, box_h), element.get("fill", "#ffffff"))
+        fill = element.get("fill", "#ffffff")
+        layer = Image.new("RGBA", (box_w, box_h), (0, 0, 0, 0) if fill in (None, "", "transparent") else fill)
         draw = ImageDraw.Draw(layer)
-        draw.rectangle([0, 0, box_w - 1, box_h - 1], outline=element.get("stroke", "#000000"), width=1)
+        # Optional strokeWidth (mm) for a visible border; absent = the old 1px hairline.
+        stroke_px = max(1, mm_to_px(float(element.get("strokeWidth", 0)), dpi))
+        draw.rectangle([0, 0, box_w - 1, box_h - 1], outline=element.get("stroke", "#000000"), width=stroke_px)
         return layer
     return None
 

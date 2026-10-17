@@ -8,6 +8,9 @@ interface PropertiesPanelProps {
   onDelete: () => void;
   onBringToFront: () => void;
   onSendToBack: () => void;
+  /** The template's card type name — passed through to VariablePicker to
+   * narrow "Insert variable" to the fields relevant to this card type. */
+  cardTypeName?: string | null;
 }
 
 export default function PropertiesPanel({
@@ -16,6 +19,7 @@ export default function PropertiesPanel({
   onDelete,
   onBringToFront,
   onSendToBack,
+  cardTypeName,
 }: PropertiesPanelProps) {
   if (!element) {
     return (
@@ -99,7 +103,10 @@ export default function PropertiesPanel({
               onChange={(e) => onChange({ text: e.target.value } as Partial<DesignElement>)}
             />
           </div>
-          <VariablePicker onInsert={(token) => onChange({ text: element.text + token } as Partial<DesignElement>)} />
+          <VariablePicker
+            onInsert={(token) => onChange({ text: element.text + token } as Partial<DesignElement>)}
+            cardTypeName={cardTypeName}
+          />
 
           <div className="field">
             <label>Font family</label>
@@ -111,6 +118,8 @@ export default function PropertiesPanel({
               <option value="Georgia">Georgia</option>
               <option value="Courier New">Courier New</option>
               <option value="Verdana">Verdana</option>
+              <option value="Liberation Sans">Liberation Sans (print-exact)</option>
+              <option value="DejaVu Serif">DejaVu Serif (print-exact)</option>
               <option value="'Noto Sans Telugu', Arial">Noto Sans Telugu</option>
             </select>
           </div>
@@ -210,7 +219,10 @@ export default function PropertiesPanel({
               onChange={(e) => onChange({ value: e.target.value } as Partial<DesignElement>)}
             />
           </div>
-          <VariablePicker onInsert={(token) => onChange({ value: element.value + token } as Partial<DesignElement>)} />
+          <VariablePicker
+            onInsert={(token) => onChange({ value: element.value + token } as Partial<DesignElement>)}
+            cardTypeName={cardTypeName}
+          />
         </>
       )}
 

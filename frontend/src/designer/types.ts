@@ -55,7 +55,9 @@ export interface RectangleElement extends BaseElement {
 
 export type DesignElement = TextElement | ImageElement | QRCodeElement | BarcodeElement | RectangleElement;
 
-export const DYNAMIC_VARIABLES = [
+// Fields every card type can use — resolved from the generic
+// CustomerDetails columns (see backend data_resolver.py).
+export const COMMON_DETAIL_VARIABLES = [
   "{{name}}",
   "{{name_local}}",
   "{{dob}}",
@@ -65,15 +67,62 @@ export const DYNAMIC_VARIABLES = [
   "{{mobile}}",
   "{{photo}}",
   "{{document_number}}",
+  "{{document_number_spaced}}", // 7934 0221 6977
   "{{vid_number}}",
+  "{{vid_number_spaced}}", // 9148 4885 7537 3615
+  "{{gender_bilingual}}", // స్త్రీ/ FEMALE
   "{{issue_date}}",
   "{{details_as_on}}",
+] as const;
+
+// FSC / Ration Card only — these were added to CustomerDetails (and
+// resolve_card_variables) alongside the ration-card OCR work, but were
+// missing from this picker, so a Ration Card template had no way to bind
+// Village/Mandal/District/FP Shop No. to real data.
+export const RATION_CARD_VARIABLES = ["{{fp_shop_no}}", "{{village}}", "{{mandal}}", "{{district}}"] as const;
+
+// Other card types' placeholders (employee/student id cards etc.) — these
+// still resolve to an empty string or a document_number fallback until a
+// later phase collects that data; see data_resolver.py.
+export const OTHER_PLACEHOLDER_VARIABLES = [
   "{{fsc_number}}",
   "{{employee_id}}",
   "{{student_id}}",
   "{{company}}",
   "{{designation}}",
 ] as const;
+
+// The full set — used as a fallback when the template's card type isn't
+// known or doesn't match a recognized kind below, so nothing is ever
+// hidden outright.
+export const DYNAMIC_VARIABLES = [
+  ...COMMON_DETAIL_VARIABLES,
+  ...RATION_CARD_VARIABLES,
+  ...OTHER_PLACEHOLDER_VARIABLES,
+] as const;
+
+/** Narrows the variable list shown in "Insert variable" to the ones that
+ * actually apply to this card type, based on its (free-text, admin-set)
+ * name. CardType has no structural link to a document/field schema, so
+ * this is necessarily a keyword match — falls back to the full list for
+ * anything that doesn't match a recognized kind, so nothing is ever
+ * hidden outright. */
+export function variablesForCardType(cardTypeName: string | null | undefined): readonly string[] {
+  const name = (cardTypeName ?? "").toLowerCase();
+  if (name.includes("ration") || name.includes("fsc")) {
+    return [...COMMON_DETAIL_VARIABLES, ...RATION_CARD_VARIABLES];
+  }
+  if (name.includes("employee")) {
+    return [...COMMON_DETAIL_VARIABLES, "{{employee_id}}", "{{company}}", "{{designation}}"];
+  }
+  if (name.includes("student")) {
+    return [...COMMON_DETAIL_VARIABLES, "{{student_id}}"];
+  }
+  if (name.includes("aadhaar")) {
+    return COMMON_DETAIL_VARIABLES;
+  }
+  return DYNAMIC_VARIABLES;
+}
 
 let nextId = 1;
 export function generateElementId(): string {

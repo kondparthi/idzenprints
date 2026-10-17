@@ -37,6 +37,14 @@ _FONT_FILES = {
     (True, True): "DejaVuSans-BoldOblique.ttf",
 }
 
+# Opt-in families: used only when a template element's fontFamily names one
+# of these exactly, so every existing template (Arial/Georgia/... -> DejaVu
+# Sans, as before) renders unchanged. (regular, bold) file per family.
+_FAMILY_FILES = {
+    "DejaVu Serif": ("DejaVuSerif.ttf", "DejaVuSerif-Bold.ttf"),
+    "Liberation Sans": ("LiberationSans-Regular.ttf", "LiberationSans-Bold.ttf"),
+}
+
 _INDIC_SCRIPT_PATTERN = re.compile(
     r"[\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F\u0A80-\u0AFF"
     r"\u0B00-\u0B7F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F]"
@@ -52,22 +60,27 @@ def contains_indic_script(text: str) -> bool:
     return bool(_INDIC_SCRIPT_PATTERN.search(text or ""))
 
 
-def get_font(bold: bool, italic: bool, size_px: int) -> ImageFont.FreeTypeFont:
+def get_font(bold: bool, italic: bool, size_px: int, family: str | None = None) -> ImageFont.FreeTypeFont:
     size_px = max(1, int(size_px))
-    key = (_FONT_FILES[(bold, italic)], False, size_px)
-    if key not in _font_cache:
+    if family in _FAMILY_FILES:
+        filename = _FAMILY_FILES[family][1 if bold else 0]  # no italic variants bundled
+    else:
         filename = _FONT_FILES[(bold, italic)]
+    key = (filename, False, size_px)
+    if key not in _font_cache:
         _font_cache[key] = ImageFont.truetype(str(_FONTS_DIR / filename), size_px)
     return _font_cache[key]
 
 
-def get_font_for_text(text: str, bold: bool, italic: bool, size_px: int) -> ImageFont.FreeTypeFont:
+def get_font_for_text(
+    text: str, bold: bool, italic: bool, size_px: int, family: str | None = None
+) -> ImageFont.FreeTypeFont:
     """Same as get_font(), but automatically switches to the bundled Indic
     font when `text` contains Telugu/Devanagari/Tamil/etc. characters.
     Italic has no effect for the Indic font — Noto Sans Telugu doesn't
     ship an oblique variant, so bold-or-not is all that applies there."""
     if not contains_indic_script(text):
-        return get_font(bold, italic, size_px)
+        return get_font(bold, italic, size_px, family)
 
     size_px = max(1, int(size_px))
     key = (_INDIC_FONT_FILE, bold, size_px)
