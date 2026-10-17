@@ -10,7 +10,7 @@ import io
 from pathlib import Path
 from typing import Optional
 
-from PIL import Image
+from PIL import Image, ImageDraw
 from sqlalchemy.orm import Session
 
 from app.config.settings import get_settings
@@ -58,6 +58,13 @@ _A4_ROWS = 5
 # stretched to fill the cell exactly (CR80 cards are ~1.5% off 88x56);
 # anything further off is fitted inside instead of being distorted.
 _A4_FILL_TOLERANCE = 0.06
+
+# Dotted cut/alignment guides drawn on the cell boundaries (px at 300dpi):
+# each dot is _DOT_LEN long and _DOT_THICK thick, repeating every _DOT_PERIOD.
+_DOT_LEN = 5
+_DOT_THICK = 4
+_DOT_PERIOD = 14
+_DOT_COLOR = (40, 40, 40)
 
 
 def _mm_to_px(mm: float, dpi: int = _SHEET_DPI) -> int:
@@ -193,13 +200,44 @@ class UploadedCardSheetService:
 
         pages: list[Image.Image] = []
         for start in range(0, len(ordered), _A4_ROWS):
+            chunk = ordered[start : start + _A4_ROWS]
             page = Image.new("RGB", (sheet_w, sheet_h), "white")
-            for row, card in enumerate(ordered[start : start + _A4_ROWS]):
+            for row, card in enumerate(chunk):
                 y = top + row * cell_h
                 self._place_image(page, card.front_image_path, front_x, y, cell_w, cell_h, fill=True)
                 self._place_image(page, card.back_image_path, back_x, y, cell_w, cell_h, fill=True)
+
+            # Dotted box borders at the exact cell edges, drawn last so they
+            # sit on top of the images. Neighbouring rows share one line.
+            draw = ImageDraw.Draw(page)
+            rows_used = len(chunk)
+            bottom = top + rows_used * cell_h
+            columns = [front_x]
+            if any(self._resolve(c.back_image_path) for c in chunk):
+                columns.append(back_x)
+            for col_x in columns:
+                for k in range(rows_used + 1):
+                    self._dotted_line(draw, col_x, top + k * cell_h, col_x + cell_w, top + k * cell_h)
+                self._dotted_line(draw, col_x, top, col_x, bottom)
+                self._dotted_line(draw, col_x + cell_w, top, col_x + cell_w, bottom)
             pages.append(page)
         return pages
+
+    @staticmethod
+    def _dotted_line(draw: ImageDraw.ImageDraw, x0: int, y0: int, x1: int, y1: int) -> None:
+        """Dotted horizontal or vertical line centred on the given
+        coordinates (so the dots straddle the exact cell edge)."""
+        half = _DOT_THICK // 2
+        if y0 == y1:  # horizontal
+            for x in range(x0, x1 + 1, _DOT_PERIOD):
+                draw.rectangle(
+                    [x, y0 - half, min(x + _DOT_LEN - 1, x1), y0 - half + _DOT_THICK - 1], fill=_DOT_COLOR
+                )
+        else:  # vertical
+            for y in range(y0, y1 + 1, _DOT_PERIOD):
+                draw.rectangle(
+                    [x0 - half, y, x0 - half + _DOT_THICK - 1, min(y + _DOT_LEN - 1, y1)], fill=_DOT_COLOR
+                )
 
     def _place_card(
         self,
