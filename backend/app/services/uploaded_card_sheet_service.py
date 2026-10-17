@@ -41,6 +41,24 @@ _FRONT_BACK_GUTTER_MM = 3  # between a card's front and its own back, within one
 _DEFAULT_CARD_WIDTH_MM = 85.60
 _DEFAULT_CARD_HEIGHT_MM = 53.98
 
+# Fixed A4 print-shop template: all fronts in a left column, all backs in
+# a right column, five rows of 88 x 56mm cells that touch each other
+# vertically. Measured from the shop's alignment drawing:
+#   width  = 14 + 88 + 6 + 88 + 14 = 210mm
+#   height = 8.5 + (56 x 5 = 280) + 8.5 = 297mm
+# Row N's front and back sit side by side, so cards line up with the
+# pre-cut/pre-marked PVC sheet exactly.
+_A4_CELL_W_MM = 88.0
+_A4_CELL_H_MM = 56.0
+_A4_LEFT_MM = 14.0
+_A4_COLUMN_GAP_MM = 6.0
+_A4_TOP_MM = 8.5
+_A4_ROWS = 5
+# An image whose proportions are within this much of the cell's is
+# stretched to fill the cell exactly (CR80 cards are ~1.5% off 88x56);
+# anything further off is fitted inside instead of being distorted.
+_A4_FILL_TOLERANCE = 0.06
+
 
 def _mm_to_px(mm: float, dpi: int = _SHEET_DPI) -> int:
     return round(mm / _MM_PER_IN * dpi)
@@ -130,6 +148,9 @@ class UploadedCardSheetService:
         cell_w_mm = max((c.width_mm or _DEFAULT_CARD_WIDTH_MM) for c in ordered)
         cell_h_mm = max((c.height_mm or _DEFAULT_CARD_HEIGHT_MM) for c in ordered)
 
+        if paper_size == "a4":
+            return self._build_a4_template_pages(ordered)
+
         sheet_w_mm, sheet_h_mm = PAPER_SIZES_MM[paper_size]
         sheet_w = _mm_to_px(sheet_w_mm)
         sheet_h = _mm_to_px(sheet_h_mm)
@@ -161,6 +182,25 @@ class UploadedCardSheetService:
 
         return pages
 
+    def _build_a4_template_pages(self, ordered: list[UploadedCard]) -> list[Image.Image]:
+        sheet_w = _mm_to_px(PAPER_SIZES_MM["a4"][0])
+        sheet_h = _mm_to_px(PAPER_SIZES_MM["a4"][1])
+        cell_w = _mm_to_px(_A4_CELL_W_MM)
+        cell_h = _mm_to_px(_A4_CELL_H_MM)
+        front_x = _mm_to_px(_A4_LEFT_MM)
+        back_x = _mm_to_px(_A4_LEFT_MM + _A4_CELL_W_MM + _A4_COLUMN_GAP_MM)
+        top = _mm_to_px(_A4_TOP_MM)
+
+        pages: list[Image.Image] = []
+        for start in range(0, len(ordered), _A4_ROWS):
+            page = Image.new("RGB", (sheet_w, sheet_h), "white")
+            for row, card in enumerate(ordered[start : start + _A4_ROWS]):
+                y = top + row * cell_h
+                self._place_image(page, card.front_image_path, front_x, y, cell_w, cell_h, fill=True)
+                self._place_image(page, card.back_image_path, back_x, y, cell_w, cell_h, fill=True)
+            pages.append(page)
+        return pages
+
     def _place_card(
         self,
         page: Image.Image,
@@ -176,13 +216,24 @@ class UploadedCardSheetService:
         self._place_image(page, card.back_image_path, back_x, block_y, cell_w, cell_h)
 
     def _place_image(
-        self, page: Image.Image, relative_path: Optional[str], x: int, y: int, cell_w: int, cell_h: int
+        self,
+        page: Image.Image,
+        relative_path: Optional[str],
+        x: int,
+        y: int,
+        cell_w: int,
+        cell_h: int,
+        fill: bool = False,
     ) -> None:
         path = self._resolve(relative_path)
         if path is None:
             return
         with Image.open(path) as img:
-            fitted = self._fit(img.convert("RGB"), cell_w, cell_h)
+            rgb = img.convert("RGB")
+            if fill and abs((rgb.width / rgb.height) / (cell_w / cell_h) - 1) <= _A4_FILL_TOLERANCE:
+                fitted = rgb.resize((cell_w, cell_h), Image.LANCZOS)
+            else:
+                fitted = self._fit(rgb, cell_w, cell_h)
             cell_x = x + (cell_w - fitted.width) // 2
             cell_y = y + (cell_h - fitted.height) // 2
             page.paste(fitted, (cell_x, cell_y))
