@@ -25,6 +25,29 @@ export async function createUploadedCard(
   return data;
 }
 
+/**
+ * Uploads ONE file — a full Aadhaar letter as PDF, JPG or PNG. The server
+ * finds the card section at the bottom of the page and cuts it into the
+ * front and back, so the saved card has both sides. `password` is only
+ * needed when the PDF is locked.
+ */
+export async function createUploadedCardFromLetter(
+  cardTypeId: string,
+  name: string,
+  letterFile: File,
+  password?: string
+): Promise<UploadedCard> {
+  const form = new FormData();
+  form.append("card_type_id", cardTypeId);
+  form.append("name", name);
+  form.append("letter_file", letterFile);
+  if (password) form.append("pdf_password", password);
+  const { data } = await apiClient.post<UploadedCard>("/uploaded-cards", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
 export async function deleteUploadedCard(id: string): Promise<void> {
   await apiClient.delete(`/uploaded-cards/${id}`);
 }

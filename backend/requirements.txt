@@ -18,3 +18,5 @@ pypdf==5.0.1
 qrcode[pil]==8.0
 python-barcode==0.15.1
 reportlab==5.0.1
+numpy>=2.0,<3
+pypdfium2>=4.30,<6

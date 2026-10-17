@@ -13,6 +13,7 @@ from app.database import get_db
 from app.middleware.auth_middleware import get_current_user
 from app.models.user import User
 from app.schemas.uploaded_card import UploadedCardOut, UploadedCardPrintSheetRequest
+from app.services.aadhaar_letter_extractor import LetterExtractionError
 from app.services.uploaded_card_service import (
     CardTypeNotFoundForUploadError,
     UploadedCardNotFoundError,
@@ -50,17 +51,32 @@ def list_uploaded_cards(card_type_id: str | None = Query(default=None), db: Sess
 def create_uploaded_card(
     card_type_id: str = Form(...),
     name: str = Form(...),
-    front_file: UploadFile = File(...),
+    front_file: UploadFile | None = File(default=None),
     back_file: UploadFile | None = File(default=None),
+    letter_file: UploadFile | None = File(default=None),
+    pdf_password: str | None = Form(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Two ways in: front_file (+ optional back_file) as ready-made card
+    images, or a single letter_file (PDF/JPG/PNG of a full Aadhaar letter)
+    whose bottom card section is cut into front and back automatically."""
+    service = UploadedCardService(db)
     try:
-        card = UploadedCardService(db).create_uploaded_card(
-            card_type_id, name, front_file, back_file, uploaded_by=current_user.id
-        )
+        if letter_file is not None and letter_file.filename:
+            card = service.create_uploaded_card_from_letter(
+                card_type_id, name, letter_file, pdf_password, uploaded_by=current_user.id
+            )
+        elif front_file is not None and front_file.filename:
+            card = service.create_uploaded_card(
+                card_type_id, name, front_file, back_file, uploaded_by=current_user.id
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Upload a front image, or a single letter file.")
     except CardTypeNotFoundForUploadError as exc:
         raise HTTPException(status_code=404, detail="Card type not found") from exc
+    except LetterExtractionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _to_out(card)
 
 

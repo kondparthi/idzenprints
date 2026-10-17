@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
+from PIL import Image
 
 from app.config.settings import get_settings
 
@@ -29,11 +30,10 @@ def _validate_extension(filename: str) -> str:
     return ext
 
 
-def save_upload_file(upload_file: UploadFile, subdir: str) -> tuple[str, int, str]:
+def read_validated_upload(upload_file: UploadFile) -> tuple[bytes, str, str]:
     """
-    Validates and saves an uploaded file.
-
-    Returns (stored_path_relative_to_UPLOAD_DIR, file_size_bytes, mime_type).
+    Validates an uploaded file (name, extension, content type, size) and
+    returns (contents, extension, mime_type) without saving it anywhere.
     Raises HTTPException on validation failure.
     """
     if not upload_file.filename:
@@ -60,6 +60,18 @@ def save_upload_file(upload_file: UploadFile, subdir: str) -> tuple[str, int, st
             detail=f"File exceeds the maximum allowed size of {limit_text}",
         )
 
+    return contents, ext, mime_type or "application/octet-stream"
+
+
+def save_upload_file(upload_file: UploadFile, subdir: str) -> tuple[str, int, str]:
+    """
+    Validates and saves an uploaded file.
+
+    Returns (stored_path_relative_to_UPLOAD_DIR, file_size_bytes, mime_type).
+    Raises HTTPException on validation failure.
+    """
+    contents, ext, mime_type = read_validated_upload(upload_file)
+
     target_dir = Path(settings.UPLOAD_DIR) / subdir
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -68,7 +80,17 @@ def save_upload_file(upload_file: UploadFile, subdir: str) -> tuple[str, int, st
     absolute_path.write_bytes(contents)
 
     relative_path = str(Path(subdir) / stored_filename)
-    return relative_path, file_size, mime_type or "application/octet-stream"
+    return relative_path, len(contents), mime_type
+
+
+def save_pil_image(image: "Image.Image", subdir: str) -> str:
+    """Saves a Pillow image as a PNG under UPLOAD_DIR with a random name and
+    returns its path relative to UPLOAD_DIR."""
+    target_dir = Path(settings.UPLOAD_DIR) / subdir
+    target_dir.mkdir(parents=True, exist_ok=True)
+    stored_filename = f"{uuid.uuid4().hex}.png"
+    image.save(target_dir / stored_filename, format="PNG")
+    return str(Path(subdir) / stored_filename)
 
 
 def resolve_stored_path(relative_path: str) -> Path:

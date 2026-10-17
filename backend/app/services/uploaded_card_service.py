@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.models.card_type import CardType
 from app.models.uploaded_card import UploadedCard
 from app.repositories.uploaded_card_repository import UploadedCardRepository
-from app.utils.file_storage import delete_stored_file, save_upload_file
+from app.services.aadhaar_letter_extractor import extract_cards
+from app.utils.file_storage import delete_stored_file, read_validated_upload, save_pil_image, save_upload_file
 
 
 class UploadedCardNotFoundError(Exception):
@@ -47,6 +48,38 @@ class UploadedCardService:
         back_relative_path = None
         if back_file is not None and back_file.filename:
             back_relative_path, _size, _mime = save_upload_file(back_file, subdir=f"uploaded_cards/{card_type_id}")
+
+        card = UploadedCard(
+            card_type_id=card_type_id,
+            name=name,
+            front_image_path=front_relative_path,
+            back_image_path=back_relative_path,
+            uploaded_by=uploaded_by,
+        )
+        return self.repo.create(card)
+
+    def create_uploaded_card_from_letter(
+        self,
+        card_type_id: str,
+        name: str,
+        letter_file: UploadFile,
+        password: Optional[str],
+        uploaded_by: Optional[str],
+    ) -> UploadedCard:
+        """One file in (an Aadhaar letter as PDF/JPG/PNG), front and back
+        cards cut out of its bottom section and saved as the two sides.
+        Raises LetterExtractionError subclasses (safe to show to the user)
+        if the file can't be read or has no card section."""
+        card_type = self.db.query(CardType).filter(CardType.id == card_type_id).first()
+        if not card_type:
+            raise CardTypeNotFoundForUploadError(card_type_id)
+
+        contents, _ext, _mime = read_validated_upload(letter_file)
+        front_image, back_image = extract_cards(contents, password)
+
+        subdir = f"uploaded_cards/{card_type_id}"
+        front_relative_path = save_pil_image(front_image, subdir)
+        back_relative_path = save_pil_image(back_image, subdir)
 
         card = UploadedCard(
             card_type_id=card_type_id,

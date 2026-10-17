@@ -1,7 +1,9 @@
+import { isAxiosError } from "axios";
 import { useEffect, useState, type FormEvent } from "react";
 import { listCardTypes } from "@/api/cardTypes";
 import {
   createUploadedCard,
+  createUploadedCardFromLetter,
   deleteUploadedCard,
   getUploadedCardImageUrl,
   listUploadedCards,
@@ -18,6 +20,18 @@ const PAPER_SIZES = [
   { value: "letter", label: "Letter" },
 ];
 
+type UploadMode = "photos" | "letter";
+
+// The server's own message is worth showing when there is one (wrong PDF
+// password, no card section found, …); otherwise fall back to a generic line.
+function serverMessage(err: unknown, fallback: string): string {
+  if (isAxiosError(err)) {
+    const detail = err.response?.data?.detail;
+    if (typeof detail === "string" && detail) return detail;
+  }
+  return fallback;
+}
+
 export default function PrintCards() {
   const [cardTypes, setCardTypes] = useState<CardType[]>([]);
   const [cardTypeId, setCardTypeId] = useState("");
@@ -33,6 +47,9 @@ export default function PrintCards() {
   const [uploadName, setUploadName] = useState("");
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
+  const [uploadMode, setUploadMode] = useState<UploadMode>("photos");
+  const [letterFile, setLetterFile] = useState<File | null>(null);
+  const [pdfPassword, setPdfPassword] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const [copies, setCopies] = useState<Record<string, number>>({});
@@ -95,22 +112,30 @@ export default function PrintCards() {
 
   async function handleUpload(event: FormEvent) {
     event.preventDefault();
-    if (!cardTypeId || !frontFile) {
-      setError("Choose a card type and a front image first.");
+    const sourceFile = uploadMode === "letter" ? letterFile : frontFile;
+    if (!cardTypeId || !sourceFile) {
+      setError(
+        uploadMode === "letter" ? "Choose a card type and a file first." : "Choose a card type and a front image first."
+      );
       return;
     }
     setError(null);
     setIsUploading(true);
     try {
       const name = uploadName.trim() || selectedCardTypeName();
-      const created = await createUploadedCard(cardTypeId, name, frontFile, backFile);
+      const created =
+        uploadMode === "letter"
+          ? await createUploadedCardFromLetter(cardTypeId, name, sourceFile, pdfPassword.trim() || undefined)
+          : await createUploadedCard(cardTypeId, name, sourceFile, backFile);
       setLibrary((prev) => [created, ...prev]);
       setUploadName("");
       setFrontFile(null);
       setBackFile(null);
+      setLetterFile(null);
+      setPdfPassword("");
       setShowUploadForm(false);
-    } catch {
-      setError("Couldn't upload that card. Check the files and try again.");
+    } catch (err) {
+      setError(serverMessage(err, "Couldn't upload that card. Check the files and try again."));
     } finally {
       setIsUploading(false);
     }
@@ -203,29 +228,84 @@ export default function PrintCards() {
               onChange={(e) => setUploadName(e.target.value)}
             />
           </div>
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="frontFile">Front image</label>
-              <input
-                id="frontFile"
-                type="file"
-                accept="image/png,image/jpeg"
-                onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)}
-                required
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="backFile">Back image (optional)</label>
-              <input
-                id="backFile"
-                type="file"
-                accept="image/png,image/jpeg"
-                onChange={(e) => setBackFile(e.target.files?.[0] ?? null)}
-              />
+          <div className="field">
+            <span className="print-cards-mode-label">How do you want to upload?</span>
+            <div className="print-cards-mode">
+              <label>
+                <input
+                  type="radio"
+                  name="uploadMode"
+                  checked={uploadMode === "photos"}
+                  onChange={() => setUploadMode("photos")}
+                />
+                Front &amp; back photos
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="uploadMode"
+                  checked={uploadMode === "letter"}
+                  onChange={() => setUploadMode("letter")}
+                />
+                Single image / PDF (Aadhaar letter)
+              </label>
             </div>
           </div>
+
+          {uploadMode === "photos" ? (
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="frontFile">Front image</label>
+                <input
+                  id="frontFile"
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="backFile">Back image (optional)</label>
+                <input
+                  id="backFile"
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={(e) => setBackFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="field-row">
+                <div className="field">
+                  <label htmlFor="letterFile">Aadhaar letter (PDF, JPG or PNG)</label>
+                  <input
+                    id="letterFile"
+                    type="file"
+                    accept="application/pdf,image/png,image/jpeg"
+                    onChange={(e) => setLetterFile(e.target.files?.[0] ?? null)}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="pdfPassword">PDF password (only if the PDF is locked)</label>
+                  <input
+                    id="pdfPassword"
+                    value={pdfPassword}
+                    placeholder="e.g. MALG1961"
+                    autoComplete="off"
+                    onChange={(e) => setPdfPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="field-hint">
+                The card section at the bottom of the letter is found automatically and cut into the front and
+                back.
+              </p>
+            </>
+          )}
           <div className="card-generate-actions">
-            <button type="submit" className="btn btn-primary" disabled={isUploading || !frontFile}>
+            <button type="submit" className="btn btn-primary" disabled={isUploading || !(uploadMode === "letter" ? letterFile : frontFile)}>
               {isUploading ? "Uploading…" : "Save to library"}
             </button>
           </div>
