@@ -7,11 +7,13 @@ import {
   uploadTemplateBackground,
   type TemplateSide,
 } from "@/api/templates";
+import { listCardTypes } from "@/api/cardTypes";
 import CanvasElement from "@/designer/CanvasElement";
 import Toolbar from "@/designer/Toolbar";
 import PropertiesPanel from "@/designer/PropertiesPanel";
 import { createDefaultElement, type DesignElement, type ElementType } from "@/designer/types";
 import type { Template } from "@/types/template";
+import type { CardType } from "@/types/cardType";
 import "@/designer/designer.css";
 import "./TemplateDesigner.css";
 
@@ -43,6 +45,7 @@ export default function TemplateDesigner() {
   const [showGrid, setShowGrid] = useState(false);
   const [showSafeArea, setShowSafeArea] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [cardTypes, setCardTypes] = useState<CardType[]>([]);
   const bgInputRef = useRef<HTMLInputElement>(null);
 
   const elements = side === "front" ? frontElements : backElements;
@@ -63,6 +66,15 @@ export default function TemplateDesigner() {
       }
     });
   }, [id]);
+
+  useEffect(() => {
+    listCardTypes().then(setCardTypes);
+  }, []);
+
+  // CardType has no structural field-schema link, so "Insert variable" has
+  // to go by the card type's (free-text, admin-set) name — see
+  // variablesForCardType in designer/types.ts.
+  const cardTypeName = cardTypes.find((ct) => ct.id === template?.card_type_id)?.name ?? null;
 
   const pxPerMm = BASE_PX_PER_MM * (zoom / 3);
 
@@ -255,6 +267,7 @@ export default function TemplateDesigner() {
           onDelete={handleDelete}
           onBringToFront={() => handleLayerMove("front")}
           onSendToBack={() => handleLayerMove("back")}
+          cardTypeName={cardTypeName}
         />
       </div>
     </div>
