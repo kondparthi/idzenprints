@@ -34,9 +34,9 @@ class AccessControlService:
         self.db = db
         self.subscription_repo = SubscriptionRepository(db)
 
-    def _get_active_subscription_and_service(
-        self, member: Member, card_type_id: str, quantity: int
-    ) -> tuple[Subscription, CardType, int]:
+    def _get_active_subscription(self, member: Member) -> Subscription:
+        """Steps 1-2 of the permission chain: the member's latest
+        subscription must be ACTIVE and inside its licence window."""
         subscription = self.subscription_repo.get_latest_for_member(member.id)
         if not subscription:
             raise AccessDeniedError("no_subscription", "No subscription found for this account.")
@@ -58,6 +58,12 @@ class AccessControlService:
             )
         if subscription.expiry_date < today:
             raise AccessDeniedError("licence_expired", "Your subscription licence has expired.")
+        return subscription
+
+    def _get_active_subscription_and_service(
+        self, member: Member, card_type_id: str, quantity: int
+    ) -> tuple[Subscription, CardType, int]:
+        subscription = self._get_active_subscription(member)
 
         # 3. Service availability — must be enabled for the member's type
         # AND included in their package AND currently active globally.
@@ -211,5 +217,90 @@ class AccessControlService:
             "already_processed": False,
             "credits_remaining": subscription.credits_remaining,
             "pdf_used": subscription.pdf_used,
+            "transaction_id": transaction.id,
+        }
+
+
+    # ------------------------------------------------------------------
+    # Print bucket / Print cards (member portal). These are not tied to a
+    # card type or the PDF-generation quota: they only need an active
+    # subscription, and each downloaded PDF costs a flat number of credits.
+    # ------------------------------------------------------------------
+
+    def check_print_access(self, member: Member) -> Subscription:
+        """Active subscription + licence window only (no credit check) —
+        used to gate the library, bucket and free previews."""
+        return self._get_active_subscription(member)
+
+    def check_print_credits(self, member: Member, cost: int) -> None:
+        subscription = self._get_active_subscription(member)
+        if subscription.credits_remaining < cost:
+            raise AccessDeniedError(
+                "insufficient_credits",
+                f"Downloading this PDF needs {cost} credit{'s' if cost != 1 else ''}, but you only have "
+                f"{subscription.credits_remaining} remaining.",
+            )
+
+    def consume_print_sheet(
+        self, member: Member, cost: int, cards: int, reference_id: str | None = None
+    ) -> dict:
+        """Debits `cost` credits for one downloaded print-sheet PDF and
+        records it in the credit ledger (reference_type 'print_sheet').
+        Same guarantees as consume_service: a conditional UPDATE that
+        cannot overdraw under concurrency, and idempotency by reference_id
+        so a double-click never charges twice. pdf_used is untouched."""
+        if reference_id:
+            existing = (
+                self.db.query(CreditTransaction)
+                .filter(
+                    CreditTransaction.reference_type == "print_sheet",
+                    CreditTransaction.reference_id == reference_id,
+                )
+                .first()
+            )
+            if existing:
+                subscription = self.subscription_repo.get_by_id(existing.subscription_id)
+                return {
+                    "already_processed": True,
+                    "credits_remaining": subscription.credits_remaining,
+                    "transaction_id": existing.id,
+                }
+
+        subscription = self._get_active_subscription(member)
+        try:
+            result = self.db.execute(
+                sa_update(Subscription)
+                .where(Subscription.id == subscription.id, Subscription.credits_remaining >= cost)
+                .values(credits_remaining=Subscription.credits_remaining - cost)
+            )
+            if result.rowcount == 0:
+                self.db.rollback()
+                current = self.subscription_repo.get_by_id(subscription.id)
+                raise AccessDeniedError(
+                    "insufficient_credits",
+                    f"Downloading this PDF needs {cost} credit{'s' if cost != 1 else ''}, but you only have "
+                    f"{current.credits_remaining} remaining.",
+                )
+            self.db.refresh(subscription)
+            transaction = CreditTransaction(
+                subscription_id=subscription.id,
+                transaction_type=CreditTransactionType.DEBIT,
+                amount=-cost,
+                balance_after=subscription.credits_remaining,
+                reference_type="print_sheet",
+                reference_id=reference_id,
+                description=f"Print sheet PDF ({cards} card{'s' if cards != 1 else ''})",
+                created_by=member.id,
+            )
+            self.db.add(transaction)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+        self.db.refresh(subscription)
+        return {
+            "already_processed": False,
+            "credits_remaining": subscription.credits_remaining,
             "transaction_id": transaction.id,
         }

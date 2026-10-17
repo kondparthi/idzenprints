@@ -22,6 +22,7 @@ from app.routers import (
     members,
     orders,
     packages,
+    member_print,
     print_bucket,
     product_categories,
     products,
@@ -66,6 +67,7 @@ app.include_router(packages.router)
 app.include_router(subscriptions.router)
 app.include_router(member_auth.router)
 app.include_router(member_cards.router)
+app.include_router(member_print.router)
 app.include_router(public.router)
 app.include_router(storefront.router)
 app.include_router(guest_orders.router)

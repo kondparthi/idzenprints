@@ -12,6 +12,7 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.config.settings import get_settings
+from app.models.customer import Customer
 from app.models.generated_card import GeneratedCard
 from app.models.print_bucket_item import PrintBucketItem
 from app.repositories.print_bucket_repository import PrintBucketRepository
@@ -43,31 +44,46 @@ class UnsupportedPaperSizeError(Exception):
 
 
 class PrintBucketService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, owner_member_id: Optional[str] = None):
+        """owner_member_id=None is the staff bucket; a member id scopes every
+        operation to that member's own bucket (and own generated cards)."""
         self.db = db
+        self.owner_member_id = owner_member_id
         self.repo = PrintBucketRepository(db)
 
     def add(self, generated_card_id: str, added_by: Optional[str]) -> PrintBucketItem:
-        card = self.db.query(GeneratedCard).filter(GeneratedCard.id == generated_card_id).first()
+        query = self.db.query(GeneratedCard).filter(GeneratedCard.id == generated_card_id)
+        if self.owner_member_id is not None:
+            # A member may only queue cards generated for their own account.
+            query = query.join(Customer, Customer.id == GeneratedCard.customer_id).filter(
+                Customer.owner_member_id == self.owner_member_id
+            )
+        card = query.first()
         if not card:
             raise GeneratedCardNotFoundError(generated_card_id)
         existing = self.repo.get_by_generated_card_id(generated_card_id)
         if existing:
+            if existing.owner_member_id != self.owner_member_id:
+                raise GeneratedCardNotFoundError(generated_card_id)
             return existing
-        item = PrintBucketItem(generated_card_id=generated_card_id, added_by=added_by)
+        item = PrintBucketItem(
+            generated_card_id=generated_card_id,
+            added_by=None if self.owner_member_id else added_by,
+            owner_member_id=self.owner_member_id,
+        )
         return self.repo.create(item)
 
     def list_all(self) -> list[PrintBucketItem]:
-        return self.repo.list_all()
+        return self.repo.list_all(self.owner_member_id)
 
     def remove(self, item_id: str) -> None:
-        item = self.repo.get_by_id(item_id)
+        item = self.repo.get_by_id(item_id, self.owner_member_id)
         if not item:
             raise BucketItemNotFoundError(item_id)
         self.repo.delete(item)
 
     def count(self) -> int:
-        return self.repo.count()
+        return self.repo.count(self.owner_member_id)
 
     def _resolve(self, relative_path: Optional[str]) -> Optional[Path]:
         if not relative_path:
@@ -80,7 +96,7 @@ class PrintBucketService:
         if paper_size not in PAPER_SIZES_MM:
             raise UnsupportedPaperSizeError(paper_size)
 
-        items = self.repo.list_by_ids(item_ids)
+        items = self.repo.list_by_ids(item_ids, self.owner_member_id)
         # Keep the order the caller asked for (list_by_ids doesn't guarantee it).
         by_id = {item.id: item for item in items}
         ordered = [by_id[i] for i in item_ids if i in by_id]

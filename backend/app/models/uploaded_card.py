@@ -33,6 +33,8 @@ class UploadedCard(Base, TimestampMixin):
     width_mm = Column(Float, nullable=False, default=85.60)
     height_mm = Column(Float, nullable=False, default=53.98)
     uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    # NULL = staff library; set = private to that member (member portal).
+    owner_member_id = Column(String(36), ForeignKey("members.id", ondelete="CASCADE"), nullable=True, index=True)
 
     card_type = relationship("CardType")
 

@@ -19,15 +19,18 @@ class CardTypeNotFoundForUploadError(Exception):
 
 
 class UploadedCardService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, owner_member_id: Optional[str] = None):
+        """owner_member_id=None is the staff library; a member id scopes
+        every read/write to that member's private library."""
         self.db = db
+        self.owner_member_id = owner_member_id
         self.repo = UploadedCardRepository(db)
 
     def list_uploaded_cards(self, card_type_id: Optional[str] = None) -> list[UploadedCard]:
-        return self.repo.list_all(card_type_id)
+        return self.repo.list_all(card_type_id, self.owner_member_id)
 
     def get_uploaded_card(self, uploaded_card_id: str) -> UploadedCard:
-        card = self.repo.get_by_id(uploaded_card_id)
+        card = self.repo.get_by_id(uploaded_card_id, self.owner_member_id)
         if not card:
             raise UploadedCardNotFoundError(uploaded_card_id)
         return card
@@ -54,7 +57,8 @@ class UploadedCardService:
             name=name,
             front_image_path=front_relative_path,
             back_image_path=back_relative_path,
-            uploaded_by=uploaded_by,
+            uploaded_by=None if self.owner_member_id else uploaded_by,
+            owner_member_id=self.owner_member_id,
         )
         return self.repo.create(card)
 
@@ -86,7 +90,8 @@ class UploadedCardService:
             name=name,
             front_image_path=front_relative_path,
             back_image_path=back_relative_path,
-            uploaded_by=uploaded_by,
+            uploaded_by=None if self.owner_member_id else uploaded_by,
+            owner_member_id=self.owner_member_id,
         )
         return self.repo.create(card)
 

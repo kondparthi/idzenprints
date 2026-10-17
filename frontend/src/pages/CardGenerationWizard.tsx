@@ -12,6 +12,8 @@ import {
 import type { DocumentType, CustomerDetails } from "@/types/document";
 import { templateHasBackSide, type Template } from "@/types/template";
 import type { GeneratedCard } from "@/types/generatedCard";
+import { Link } from "react-router-dom";
+import { memberPrintBucketApi } from "@/api/memberPrint";
 import "./CardGenerationWizard.css";
 
 interface CardGenerationWizardProps {
@@ -155,6 +157,26 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
       setError(message || "Couldn't generate that card.");
     } finally {
       setIsBusy(false);
+    }
+  }
+
+  const [bucketState, setBucketState] = useState<"idle" | "adding" | "added">("idle");
+  const [bucketError, setBucketError] = useState<string | null>(null);
+
+  async function handleAddToBucket() {
+    if (!card || !memberPrintBucketApi.addToBucket) return;
+    setBucketError(null);
+    setBucketState("adding");
+    try {
+      await memberPrintBucketApi.addToBucket(card.id);
+      setBucketState("added");
+    } catch (err) {
+      setBucketState("idle");
+      setBucketError(
+        err instanceof Error && err.name === "ApiMessageError"
+          ? err.message
+          : "Couldn't add this card to your print bucket."
+      );
     }
   }
 
@@ -328,7 +350,17 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
           </p>
           <button className="btn btn-primary" onClick={handleDownload}>
             Download PDF
-          </button>
+          </button>{" "}
+          {bucketState === "added" ? (
+            <Link to="/member/print-bucket" className="btn btn-secondary">
+              Added — open Print bucket
+            </Link>
+          ) : (
+            <button className="btn btn-secondary" onClick={handleAddToBucket} disabled={bucketState === "adding"}>
+              {bucketState === "adding" ? "Adding…" : "Add to print bucket"}
+            </button>
+          )}
+          {bucketError && <p className="error-text">{bucketError}</p>}
         </div>
       )}
     </div>

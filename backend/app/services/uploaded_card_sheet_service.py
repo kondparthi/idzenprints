@@ -84,8 +84,9 @@ class EmptySheetRequestError(Exception):
 
 
 class UploadedCardSheetService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, owner_member_id: Optional[str] = None):
         self.db = db
+        self.owner_member_id = owner_member_id
         self.repo = UploadedCardRepository(db)
 
     def _resolve(self, relative_path: Optional[str]) -> Optional[Path]:
@@ -136,7 +137,7 @@ class UploadedCardSheetService:
             raise EmptySheetRequestError("no cards selected")
 
         requested_ids = [item.uploaded_card_id for item in items]
-        found = self.repo.list_by_ids(requested_ids)
+        found = self.repo.list_by_ids(requested_ids, self.owner_member_id)
         by_id = {card.id: card for card in found}
         missing = [cid for cid in requested_ids if cid not in by_id]
         if missing:

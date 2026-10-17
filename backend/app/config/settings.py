@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     GENERATED_DIR: str = "./storage/generated"
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10 MB
 
+    # Member portal: credits charged per downloaded print-sheet PDF
+    # (Print bucket / Print cards). Previews are free.
+    PRINT_SHEET_CREDIT_COST: int = 1
+
     # OCR (used from Phase 2 onward)
     OCR_PROVIDER: str = ""
     OCR_API_KEY: str = ""

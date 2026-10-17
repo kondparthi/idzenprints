@@ -1,15 +1,6 @@
 import { isAxiosError } from "axios";
 import { useEffect, useState, type FormEvent } from "react";
-import { listCardTypes } from "@/api/cardTypes";
-import {
-  createUploadedCard,
-  createUploadedCardFromLetter,
-  deleteUploadedCard,
-  getUploadedCardImageUrl,
-  listUploadedCards,
-  previewUploadedCardSheet,
-  printUploadedCardSheet,
-} from "@/api/uploadedCards";
+import { staffPrintCardsApi, type PrintCardsApi } from "@/api/printApi";
 import type { CardType } from "@/types/cardType";
 import type { UploadedCard } from "@/types/uploadedCard";
 import "./PrintCards.css";
@@ -25,6 +16,7 @@ type UploadMode = "photos" | "letter";
 // The server's own message is worth showing when there is one (wrong PDF
 // password, no card section found, …); otherwise fall back to a generic line.
 function serverMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.name === "ApiMessageError") return err.message;
   if (isAxiosError(err)) {
     const detail = err.response?.data?.detail;
     if (typeof detail === "string" && detail) return detail;
@@ -32,7 +24,24 @@ function serverMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-export default function PrintCards() {
+interface PrintCardsProps {
+  /** Which backend to use — defaults to the staff API; the member portal passes its own. */
+  api?: PrintCardsApi;
+  /** Credits each downloaded PDF costs (member portal only) — shown on the button. */
+  creditCost?: number;
+}
+
+export default function PrintCards({ api = staffPrintCardsApi, creditCost }: PrintCardsProps) {
+  const {
+    listCardTypes,
+    listUploadedCards,
+    createUploadedCard,
+    createUploadedCardFromLetter,
+    deleteUploadedCard,
+    getUploadedCardImageUrl,
+    previewUploadedCardSheet,
+    printUploadedCardSheet,
+  } = api;
   const [cardTypes, setCardTypes] = useState<CardType[]>([]);
   const [cardTypeId, setCardTypeId] = useState("");
 
@@ -169,8 +178,8 @@ export default function PrintCards() {
     try {
       const pages = await previewUploadedCardSheet(queuedItems(), paperSize);
       setPreviewPages(pages);
-    } catch {
-      setError("Couldn't build a preview. Try again.");
+    } catch (err) {
+      setError(serverMessage(err, "Couldn't build a preview. Try again."));
     } finally {
       setIsPreviewing(false);
     }
@@ -182,8 +191,8 @@ export default function PrintCards() {
     setIsDownloading(true);
     try {
       await printUploadedCardSheet(queuedItems(), paperSize);
-    } catch {
-      setError("Couldn't build the print sheet. Try again.");
+    } catch (err) {
+      setError(serverMessage(err, "Couldn't build the print sheet. Try again."));
     } finally {
       setIsDownloading(false);
     }
@@ -390,7 +399,11 @@ export default function PrintCards() {
               {isPreviewing ? "Building preview…" : `Preview ${totalCards} card${totalCards === 1 ? "" : "s"}`}
             </button>
             <button className="btn btn-primary" onClick={handleDownload} disabled={totalCards === 0 || isDownloading}>
-              {isDownloading ? "Building PDF…" : "Download PDF"}
+              {isDownloading
+                ? "Building PDF…"
+                : creditCost
+                  ? `Download PDF (${creditCost} credit${creditCost === 1 ? "" : "s"})`
+                  : "Download PDF"}
             </button>
           </div>
 

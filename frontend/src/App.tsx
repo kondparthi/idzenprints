@@ -45,6 +45,8 @@ import MemberSessions from "@/pages/MemberSessions";
 import CreditLedger from "@/pages/CreditLedger";
 import PrintBucket from "@/pages/PrintBucket";
 import PrintCards from "@/pages/PrintCards";
+import MemberPrintBucket from "@/pages/MemberPrintBucket";
+import MemberPrintCards from "@/pages/MemberPrintCards";
 import { PrintBucketProvider } from "@/print-bucket/PrintBucketContext";
 
 export default function App() {
@@ -69,6 +71,8 @@ export default function App() {
           <Route path="/member/section/:slug" element={<MemberSectionPlaceholder />} />
           <Route path="/member/cards/aadhaar-pvc" element={<MemberAadhaarPvc />} />
           <Route path="/member/credit-history" element={<MemberCreditHistory />} />
+          <Route path="/member/print-bucket" element={<MemberPrintBucket />} />
+          <Route path="/member/print-cards" element={<MemberPrintCards />} />
         </Route>
       </Route>
       <Route path="/login" element={<Login />} />

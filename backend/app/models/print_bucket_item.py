@@ -18,6 +18,8 @@ class PrintBucketItem(Base, TimestampMixin):
     id = uuid_column()
     generated_card_id = Column(String(36), ForeignKey("generated_cards.id", ondelete="CASCADE"), nullable=False, index=True)
     added_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    # NULL = staff bucket; set = that member's own bucket (member portal).
+    owner_member_id = Column(String(36), ForeignKey("members.id", ondelete="CASCADE"), nullable=True, index=True)
 
     generated_card = relationship("GeneratedCard", backref="bucket_items")
 

@@ -112,6 +112,20 @@ export const MEMBER_SIDEBAR: SidebarSection[] = [
         icon: "bell",
         description: "Stay updated on government job notifications relevant to your customers.",
       },
+      {
+        slug: "print-bucket",
+        label: "Print bucket",
+        icon: "bucket",
+        route: "/member/print-bucket",
+        description: "",
+      },
+      {
+        slug: "print-cards",
+        label: "Print cards",
+        icon: "printer",
+        route: "/member/print-cards",
+        description: "",
+      },
     ],
   },
   {

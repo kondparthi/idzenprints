@@ -41,3 +41,9 @@ export function usePrintBucket(): PrintBucketContextValue {
   }
   return context;
 }
+
+/** Like usePrintBucket, but returns null outside the staff provider (the
+ * member portal reuses the Print bucket page without a sidebar badge). */
+export function useOptionalPrintBucket(): PrintBucketContextValue | null {
+  return useContext(PrintBucketContext) ?? null;
+}

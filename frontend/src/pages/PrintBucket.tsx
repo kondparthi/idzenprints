@@ -1,13 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listBucket, printBucketSheet, removeFromBucket } from "@/api/printBucket";
-import { getCardImageUrl } from "@/api/cards";
+import { staffPrintBucketApi, type PrintBucketApi } from "@/api/printApi";
 import type { PrintBucketItem } from "@/types/printBucket";
-import { usePrintBucket } from "@/print-bucket/PrintBucketContext";
+import { useOptionalPrintBucket } from "@/print-bucket/PrintBucketContext";
 import "./PrintBucket.css";
 
-export default function PrintBucket() {
-  const { refresh: refreshBadge } = usePrintBucket();
+interface PrintBucketProps {
+  /** Which backend to use — defaults to the staff API; the member portal passes its own. */
+  api?: PrintBucketApi;
+  /** Credits each downloaded PDF costs (member portal only). */
+  creditCost?: number;
+  /** Where "generate a card" lives for this audience. */
+  generatePath?: string;
+}
+
+export default function PrintBucket({ api = staffPrintBucketApi, creditCost, generatePath = "/cards/new" }: PrintBucketProps) {
+  const { listBucket, removeFromBucket, printBucketSheet, getCardImageUrl } = api;
+  const badge = useOptionalPrintBucket();
+  const refreshBadge = () => {
+    void badge?.refresh();
+  };
   const [items, setItems] = useState<PrintBucketItem[]>([]);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -82,8 +94,10 @@ export default function PrintBucket() {
       // Keep the sheet's card order matching the list's order.
       const orderedIds = items.filter((i) => selected.has(i.id)).map((i) => i.id);
       await printBucketSheet(orderedIds, paperSize);
-    } catch {
-      setError("Couldn't build the print sheet. Try again.");
+    } catch (err) {
+      setError(
+        err instanceof Error && err.name === "ApiMessageError" ? err.message : "Couldn't build the print sheet. Try again."
+      );
     } finally {
       setIsPrinting(false);
     }
@@ -109,7 +123,7 @@ export default function PrintBucket() {
           <p>The bucket is empty.</p>
           <p className="field-hint">
             Generate a card and use "Add to bucket" to queue it up here.{" "}
-            <Link to="/cards/new" className="btn-ghost-link">
+            <Link to={generatePath} className="btn-ghost-link">
               Go to Generate card
             </Link>
           </p>
@@ -132,7 +146,8 @@ export default function PrintBucket() {
               <button className="btn btn-primary" onClick={handlePrint} disabled={selected.size === 0 || isPrinting}>
                 {isPrinting
                   ? "Building PDF…"
-                  : `Print ${selected.size} card${selected.size === 1 ? "" : "s"} (${sheetCount} sheet${sheetCount === 1 ? "" : "s"})`}
+                  : `Print ${selected.size} card${selected.size === 1 ? "" : "s"} (${sheetCount} sheet${sheetCount === 1 ? "" : "s"})` +
+                    (creditCost ? ` · ${creditCost} credit${creditCost === 1 ? "" : "s"}` : "")}
               </button>
             </div>
           </div>
