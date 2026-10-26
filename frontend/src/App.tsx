@@ -76,6 +76,9 @@ export default function App() {
         </Route>
       </Route>
       <Route path="/login" element={<Login />} />
+      {/* Staff/admin login is /login; /admin and /admin/login are the URLs people try. */}
+      <Route path="/admin" element={<Navigate to="/login" replace />} />
+      <Route path="/admin/login" element={<Navigate to="/login" replace />} />
 
       <Route element={<ProtectedRoute />}>
         <Route
