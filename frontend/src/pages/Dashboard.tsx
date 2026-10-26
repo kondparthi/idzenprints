@@ -4,6 +4,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { fetchDashboardSummary, type DashboardSummary } from "@/api/dashboard";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "@/types/order";
 import "./Dashboard.css";
+import "./QuickCard.css";
 
 const QUICK_ACTIONS = [
   {
@@ -65,8 +66,18 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1>{firstName ? `Welcome back, ${firstName}` : "Dashboard"}</h1>
-      <p className="dashboard-subtitle">Here's what's happening across your card orders today.</p>
+      <div className="dashboard-head">
+        <div>
+          <h1>{firstName ? `Welcome back, ${firstName}` : "Dashboard"}</h1>
+          <p className="dashboard-subtitle">Here's what's happening across your card orders today.</p>
+        </div>
+        <Link to="/cards/quick" className="dashboard-create-card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Create card
+        </Link>
+      </div>
 
       <div className="stat-grid">
         {stats.map((stat) => (

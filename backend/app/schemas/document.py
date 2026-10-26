@@ -27,3 +27,6 @@ class DocumentProcessRequest(BaseModel):
     ignores this entirely."""
 
     password: Optional[str] = None
+    # Build the Telugu name/address from the English reading instead of the
+    # OCR's own Telugu (Quick Card flow).
+    english_to_telugu: bool = False

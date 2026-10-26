@@ -42,8 +42,18 @@ export async function deleteDocument(id: string): Promise<void> {
   await apiClient.delete(`/documents/${id}`);
 }
 
-export async function processDocument(id: string): Promise<CustomerDetails> {
-  const { data } = await apiClient.post<CustomerDetails>(`/documents/${id}/process`);
+export interface ProcessOptions {
+  /** Only for a locked PDF. */
+  password?: string;
+  /** Build the Telugu name/address from the English reading instead of the OCR's Telugu. */
+  englishToTelugu?: boolean;
+}
+
+export async function processDocument(id: string, options: ProcessOptions = {}): Promise<CustomerDetails> {
+  const { data } = await apiClient.post<CustomerDetails>(`/documents/${id}/process`, {
+    password: options.password || undefined,
+    english_to_telugu: options.englishToTelugu ?? false,
+  });
   return data;
 }
 

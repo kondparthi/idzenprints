@@ -13,8 +13,9 @@ from app.models.document import DocumentType
 from app.models.user import User
 from app.schemas.common import PaginatedResponse
 from app.schemas.customer_details import CustomerDetailsOut
-from app.schemas.document import DocumentOut
+from app.schemas.document import DocumentOut, DocumentProcessRequest
 from app.services.document_service import DocumentNotFoundError, DocumentService
+from app.services.ocr.tesseract_provider import PdfPasswordRequiredError
 from app.utils.audit import record as record_audit
 from app.utils.file_storage import resolve_stored_path
 
@@ -97,11 +98,18 @@ def delete_document(
 
 
 @router.post("/{document_id}/process", response_model=CustomerDetailsOut)
-def process_document(document_id: str, db: Session = Depends(get_db)):
+def process_document(document_id: str, payload: DocumentProcessRequest | None = None, db: Session = Depends(get_db)):
+    password = payload.password if payload else None
+    english_to_telugu = bool(payload and payload.english_to_telugu)
     try:
         service = DocumentService(db)
-        return service.process(document_id)
+        return service.process(document_id, password=password, english_to_telugu=english_to_telugu)
     except DocumentNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Document not found") from exc
+    except PdfPasswordRequiredError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "This PDF is password-protected.", "reason_code": "pdf_password_required"},
+        ) from exc
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=422, detail=f"OCR processing failed: {exc}") from exc

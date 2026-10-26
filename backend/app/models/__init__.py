@@ -31,3 +31,4 @@ from app.models.guest_order import (  # noqa: F401
     PaymentMethod,
     PaymentStatus,
 )
+from app.models.telugu_correction import TeluguCorrection  # noqa: F401

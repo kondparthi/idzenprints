@@ -106,7 +106,9 @@ class DocumentService:
             delete_stored_file(document.back_stored_path)
         self.repo.delete(document)
 
-    def process(self, document_id: str, password: str | None = None) -> CustomerDetails:
+    def process(
+        self, document_id: str, password: str | None = None, english_to_telugu: bool = False
+    ) -> CustomerDetails:
         """
         Runs OCR against the stored file(s) and upserts a CustomerDetails
         row with whatever fields were found. Always returns an editable
@@ -138,6 +140,15 @@ class DocumentService:
             document.processing_error = str(exc)
             self.repo.save(document)
             raise
+
+        if english_to_telugu:
+            # Telugu OCR is unreliable, so ignore the Telugu it read and
+            # build the Telugu from the English instead.
+            from app.services.telugu_service import TeluguService
+
+            telugu = TeluguService(self.db)
+            result.name_local = telugu.convert(result.name) or None
+            result.address_local = telugu.convert(result.address) or None
 
         document.status = DocumentStatus.PROCESSED
         document.ocr_raw_text = result.raw_text

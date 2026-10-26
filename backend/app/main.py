@@ -32,6 +32,7 @@ from app.routers import (
     subscriptions,
     tags,
     templates,
+    translation,
     uploaded_cards,
 )
 
@@ -73,6 +74,7 @@ app.include_router(storefront.router)
 app.include_router(guest_orders.router)
 app.include_router(member_sessions.router)
 app.include_router(print_bucket.router)
+app.include_router(translation.router)
 app.include_router(uploaded_cards.router)
 
 

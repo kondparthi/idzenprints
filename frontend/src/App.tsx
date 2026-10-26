@@ -45,6 +45,7 @@ import MemberSessions from "@/pages/MemberSessions";
 import CreditLedger from "@/pages/CreditLedger";
 import PrintBucket from "@/pages/PrintBucket";
 import PrintCards from "@/pages/PrintCards";
+import QuickCard from "@/pages/QuickCard";
 import MemberPrintBucket from "@/pages/MemberPrintBucket";
 import MemberPrintCards from "@/pages/MemberPrintCards";
 import { PrintBucketProvider } from "@/print-bucket/PrintBucketContext";
@@ -89,6 +90,7 @@ export default function App() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/cards/quick" element={<QuickCard />} />
           <Route path="/print-bucket" element={<PrintBucket />} />
           <Route path="/print-cards" element={<PrintCards />} />
           <Route path="/customers" element={<Customers />} />
