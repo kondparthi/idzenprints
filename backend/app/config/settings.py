@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     # (Print bucket / Print cards). Previews are free.
     PRINT_SHEET_CREDIT_COST: int = 1
 
+    # English -> Telugu for names/addresses. When ANTHROPIC_API_KEY is set,
+    # Claude does the translation (far more accurate than the built-in
+    # rules, which remain the automatic fallback). Server-side only.
+    ANTHROPIC_API_KEY: str = ""
+    TELUGU_MODEL: str = "claude-sonnet-5-5"
+
     # OCR (used from Phase 2 onward)
     OCR_PROVIDER: str = ""
     OCR_API_KEY: str = ""

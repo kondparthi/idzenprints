@@ -3,6 +3,7 @@ corrections, converts, and records new corrections."""
 from sqlalchemy.orm import Session
 
 from app.models.telugu_correction import TeluguCorrection
+from app.services import telugu_ai
 from app.services.telugu_transliteration import convert_text, learn_pairs
 
 
@@ -17,6 +18,19 @@ class TeluguService:
         if not text or not text.strip():
             return ""
         return convert_text(text, self._corrections())[0]
+
+    def convert_many(self, items: dict[str, str | None]) -> dict[str, str]:
+        """Converts several texts in one go (one Claude call when a key is
+        configured, otherwise the offline rules). Learned corrections are
+        passed to Claude as a glossary and always win in the fallback."""
+        clean = {k: (v or "").strip() for k, v in items.items()}
+        corrections = self._corrections()
+        words = {w.lower().strip(".,:-") for v in clean.values() for w in v.split()}
+        glossary = {w: t for w, t in corrections.items() if w in words}
+        ai = telugu_ai.translate(clean, glossary)
+        if ai is not None:
+            return ai
+        return {k: (convert_text(v, corrections)[0] if v else "") for k, v in clean.items()}
 
     def learn(self, english: str | None, edited_telugu: str | None) -> int:
         """Remembers every word the operator changed. Returns how many."""

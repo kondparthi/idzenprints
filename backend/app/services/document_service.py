@@ -147,8 +147,9 @@ class DocumentService:
             from app.services.telugu_service import TeluguService
 
             telugu = TeluguService(self.db)
-            result.name_local = telugu.convert(result.name) or None
-            result.address_local = telugu.convert(result.address) or None
+            out = telugu.convert_many({"name": result.name, "address": result.address})
+            result.name_local = out["name"] or None
+            result.address_local = out["address"] or None
 
         document.status = DocumentStatus.PROCESSED
         document.ocr_raw_text = result.raw_text

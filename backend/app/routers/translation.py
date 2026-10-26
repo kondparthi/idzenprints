@@ -31,7 +31,8 @@ class LearnRequest(BaseModel):
 @router.post("/telugu", response_model=ConvertResponse)
 def to_telugu(payload: ConvertRequest, db: Session = Depends(get_db)):
     service = TeluguService(db)
-    return ConvertResponse(name_local=service.convert(payload.name), address_local=service.convert(payload.address))
+    out = service.convert_many({"name": payload.name, "address": payload.address})
+    return ConvertResponse(name_local=out["name"], address_local=out["address"])
 
 
 @router.post("/telugu/learn")
