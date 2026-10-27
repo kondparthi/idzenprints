@@ -412,104 +412,128 @@ export default function QuickCard() {
       {error && <p className="error-text">{error}</p>}
 
       {step === S.CREATE && (
-        <div className="card-panel wizard-panel">
-          <h2 style={{ marginTop: 0 }}>Create new card</h2>
-          <div className="field">
-            <label htmlFor="q-type">Card type</label>
-            <select id="q-type" value={cardTypeId} onChange={(e) => setCardTypeId(e.target.value)}>
-              {cardTypes.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="q-mobile">Customer mobile (optional)</label>
-            <input id="q-mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="numeric" />
-          </div>
-          <button className="btn btn-primary" disabled={!cardTypeId} onClick={handleStart}>
-            Start
-          </button>
+        <div className="qc-workspace">
+          <aside className="card-panel qc-side">
+            <h3 className="qc-side-title">Configuration</h3>
+            <div className="field">
+              <label htmlFor="q-type">Card type</label>
+              <select id="q-type" value={cardTypeId} onChange={(e) => setCardTypeId(e.target.value)}>
+                {cardTypes.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="q-mobile">Customer mobile (optional)</label>
+              <input id="q-mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="numeric" />
+            </div>
+            <button className="btn btn-primary" disabled={!cardTypeId} onClick={handleStart}>Start</button>
+          </aside>
+          <section className="qc-main">
+            <h2 className="qc-main-title">Extracted card</h2>
+            <div className="qc-cards">
+              <div className="qc-card-pane"><span className="qc-badge">FRONT</span><p className="field-hint">Start, then upload a file to see the card here.</p></div>
+              <div className="qc-card-pane"><span className="qc-badge">BACK</span><p className="field-hint">Back side appears after you generate.</p></div>
+            </div>
+          </section>
+          <aside className="card-panel qc-side"><h3 className="qc-side-title">Steps</h3><p className="field-hint">Create → Upload → Validate → Theme → Preview → Edit → Generate &amp; print.</p></aside>
         </div>
       )}
 
       {step === S.UPLOAD && (
-        <div className="card-panel wizard-panel">
-          <h2 style={{ marginTop: 0 }}>Upload the {cardType?.name ?? "document"}</h2>
-          <div className="field">
-            <label htmlFor="q-file">PDF, JPG or PNG</label>
-            <input id="q-file" type="file" accept="application/pdf,image/png,image/jpeg" onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)} />
-          </div>
-          <div className="field">
-            <label htmlFor="q-back">Back side (optional — only if the address isn't in the first file)</label>
-            <input id="q-back" type="file" accept="application/pdf,image/png,image/jpeg" onChange={(e) => setBackFile(e.target.files?.[0] ?? null)} />
-          </div>
-          <div className="field">
-            <label htmlFor="q-pass">PDF password (only if the PDF is locked)</label>
-            <input id="q-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus={needsPassword} placeholder="e.g. MALG1961" />
-            <p className="field-hint">e-Aadhaar PDFs: first 4 letters of the name in CAPITALS + birth year.</p>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-secondary" onClick={() => setStep(S.CREATE)} disabled={isBusy}>Back</button>
+        <div className="qc-workspace">
+          <aside className="card-panel qc-side">
+            <h3 className="qc-side-title">Select file</h3>
+            <div className="field"><label>Card type</label><div className="qc-static">{cardType?.name}</div></div>
+            <div className="field">
+              <label htmlFor="q-file">PDF, JPG or PNG</label>
+              <input id="q-file" type="file" accept="application/pdf,image/png,image/jpeg" onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)} />
+            </div>
+            <div className="field">
+              <label htmlFor="q-back">Back side (optional)</label>
+              <input id="q-back" type="file" accept="application/pdf,image/png,image/jpeg" onChange={(e) => setBackFile(e.target.files?.[0] ?? null)} />
+            </div>
+            <div className="field">
+              <label htmlFor="q-pass">PDF password (only if locked)</label>
+              <input id="q-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus={needsPassword} placeholder="e.g. ARED1988" />
+              <p className="field-hint">e-Aadhaar PDFs: first 4 letters of the name in CAPITALS + birth year.</p>
+            </div>
             <button className="btn btn-primary" disabled={!frontFile || isBusy} onClick={handleUpload}>
-              {isBusy ? "Uploading & reading…" : needsPassword ? "Try again" : "Upload & read"}
+              {isBusy ? "Uploading & reading…" : needsPassword ? "Try again" : "Process"}
             </button>
-          </div>
+            <button className="btn btn-ghost btn-sm" onClick={() => setStep(S.CREATE)} disabled={isBusy}>Back</button>
+          </aside>
+          <section className="qc-main">
+            <h2 className="qc-main-title">Extracted card</h2>
+            <div className="qc-cards">
+              <div className="qc-card-pane"><span className="qc-badge">FRONT</span><p className="field-hint">{frontFile ? frontFile.name : "Choose a file, then press Process."}</p></div>
+              <div className="qc-card-pane"><span className="qc-badge">BACK</span><p className="field-hint">{backFile ? backFile.name : "Optional."}</p></div>
+            </div>
+          </section>
+          <aside className="card-panel qc-side"><h3 className="qc-side-title">Tips</h3><p className="field-hint">Locked PDF? Type the password and press Process again. Details are read automatically and Telugu is created from the English.</p></aside>
         </div>
       )}
 
       {step === S.VALIDATE && fields && (
-        <div className="card-panel wizard-panel quick-wide">
-          <h2 style={{ marginTop: 0 }}>Check the details</h2>
-          <div className="quick-columns">
+        <div className="qc-workspace qc-validate">
+          <aside className="card-panel qc-side">
+            <h3 className="qc-side-title">Configuration</h3>
+            <div className="field"><label>Card type</label><div className="qc-static">{cardType?.name}</div></div>
+            <div className="field"><label>File</label><div className="qc-static">{frontFile?.name}</div></div>
+            <button className="btn btn-secondary btn-sm" onClick={() => setStep(S.UPLOAD)} disabled={isBusy}>Upload a different file</button>
+          </aside>
+          <section className="card-panel qc-main">
+            <h2 className="qc-main-title">Check the details</h2>
             {detailsForm}
-            <div className="quick-checks">
-              <h3 style={{ marginTop: 0 }}>Validation</h3>
-              <ul className="quick-check-list">
-                {validation.map((v) => (
-                  <li key={v.field} className={"quick-check quick-check-" + v.level}>
-                    <span className="quick-check-icon">{v.level === "ok" ? "✓" : v.level === "warn" ? "!" : "✕"}</span>
-                    <span>
-                      <strong>{v.label}</strong>
-                      <br />
-                      <span className="field-hint">{v.message}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className={errorCount ? "error-text" : "field-hint"}>
-                {errorCount ? `${errorCount} problem${errorCount === 1 ? "" : "s"} to fix before continuing.` : warnCount ? `${warnCount} warning${warnCount === 1 ? "" : "s"} — you can still continue.` : "All checks passed."}
-              </p>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <button className="btn btn-secondary" onClick={() => setStep(S.UPLOAD)} disabled={isBusy}>Back</button>
+          </section>
+          <aside className="card-panel qc-side">
+            <h3 className="qc-side-title">Validation</h3>
+            <ul className="quick-check-list">
+              {validation.map((v) => (
+                <li key={v.field} className={"quick-check quick-check-" + v.level}>
+                  <span className="quick-check-icon">{v.level === "ok" ? "✓" : v.level === "warn" ? "!" : "✕"}</span>
+                  <span><strong>{v.label}</strong><br /><span className="field-hint">{v.message}</span></span>
+                </li>
+              ))}
+            </ul>
+            <p className={errorCount ? "error-text" : "field-hint"}>
+              {errorCount ? `${errorCount} problem${errorCount === 1 ? "" : "s"} to fix before continuing.` : warnCount ? `${warnCount} warning${warnCount === 1 ? "" : "s"} — you can still continue.` : "All checks passed."}
+            </p>
             <button className="btn btn-primary" disabled={errorCount > 0 || isBusy} onClick={handleValidated}>
               {isBusy ? "Saving…" : "Save & select theme"}
             </button>
-          </div>
+          </aside>
         </div>
       )}
 
       {step === S.THEME && (
-        <div className="card-panel wizard-panel">
-          <h2 style={{ marginTop: 0 }}>Select theme</h2>
-          {templates.length === 0 ? (
-            <p className="empty-state">No active themes for this card type yet. Create one under Templates.</p>
-          ) : (
-            <div className="theme-grid">
-              {templates.map((tpl) => (
-                <button key={tpl.id} type="button" className={"theme-card" + (templateId === tpl.id ? " is-selected" : "")} onClick={() => setTemplateId(tpl.id)}>
-                  {tpl.name}
-                </button>
-              ))}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <button className="btn btn-secondary" onClick={() => setStep(S.VALIDATE)} disabled={isBusy}>Back</button>
+        <div className="qc-workspace">
+          <aside className="card-panel qc-side">
+            <h3 className="qc-side-title">Configuration</h3>
+            <div className="field"><label>Card type</label><div className="qc-static">{cardType?.name}</div></div>
+            <div className="field"><label>Customer</label><div className="qc-static">{fields?.name}</div></div>
+            <button className="btn btn-secondary btn-sm" onClick={() => setStep(S.VALIDATE)} disabled={isBusy}>Back to details</button>
+          </aside>
+          <section className="card-panel qc-main">
+            <h2 className="qc-main-title">Select theme</h2>
+            {templates.length === 0 ? (
+              <p className="empty-state">No active themes for this card type yet. Create one under Templates.</p>
+            ) : (
+              <div className="theme-grid">
+                {templates.map((tpl) => (
+                  <button key={tpl.id} type="button" className={"theme-card" + (templateId === tpl.id ? " is-selected" : "")} onClick={() => setTemplateId(tpl.id)}>
+                    {tpl.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+          <aside className="card-panel qc-side">
+            <h3 className="qc-side-title">Next</h3>
             <button className="btn btn-primary" disabled={!templateId || isBusy} onClick={handleShowPreview}>
               {isBusy ? "Building preview…" : "Preview card"}
             </button>
-          </div>
+          </aside>
         </div>
       )}
 
