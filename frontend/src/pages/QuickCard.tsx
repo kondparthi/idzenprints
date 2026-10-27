@@ -1,17 +1,11 @@
 import { isAxiosError } from "axios";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { listCardTypes } from "@/api/cardTypes";
-import { createCustomer, updateCustomer } from "@/api/customers";
-import { processDocument, uploadDocument } from "@/api/documents";
-import { listTemplates } from "@/api/templates";
-import { downloadCard, generateCard, previewCard } from "@/api/cards";
-import { addToBucket } from "@/api/printBucket";
 import {
-  DEFAULT_PRINT_OPTIONS, PRINT_LAYOUTS, downloadPrintSheet, openPrintSheet, previewPrintSheet,
-  type PrintSheetOptions,
+  DEFAULT_PRINT_OPTIONS, PRINT_LAYOUTS, type PrintSheetOptions,
 } from "@/api/printSheet";
-import { usePrintBucket } from "@/print-bucket/PrintBucketContext";
+import { staffQuickApi, type QuickCardApi, type QuickCtx } from "@/api/quickCardApi";
+import { useOptionalPrintBucket } from "@/print-bucket/PrintBucketContext";
 import { templateHasBackSide, type Template } from "@/types/template";
 import type { CardType } from "@/types/cardType";
 import type { CustomerDetails, DocumentType } from "@/types/document";
@@ -42,8 +36,8 @@ function documentTypeFor(cardType: CardType | undefined): DocumentType {
   return name.includes("ration") || name.includes("fsc") ? "fsc" : "aadhaar";
 }
 
-export default function QuickCard() {
-  const { refresh: refreshBucketCount } = usePrintBucket();
+export default function QuickCard({ api = staffQuickApi }: { api?: QuickCardApi }) {
+  const refreshBucketCount = useOptionalPrintBucket()?.refresh;
   const [step, setStep] = useState<number>(S.CREATE);
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -58,8 +52,7 @@ export default function QuickCard() {
   const [backFile, setBackFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const [needsPassword, setNeedsPassword] = useState(false);
-  const [customerId, setCustomerId] = useState<string | null>(null);
-  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [ctx, setCtx] = useState<QuickCtx | null>(null);
 
   // details read from the file (shown as a summary only)
   const [fields, setFields] = useState<Fields | null>(null);
@@ -88,7 +81,7 @@ export default function QuickCard() {
     let cancelled = false;
     setSheetBusy(true);
     const t = setTimeout(() => {
-      previewPrintSheet(card.id, printOpts)
+      api.sheetPreview(card.id, printOpts)
         .then((pages) => { if (!cancelled) { setSheetPages(pages); setSheetIdx((i) => Math.min(i, pages.length - 1)); } })
         .catch((err) => { if (!cancelled) setError(errorMessage(err, "Couldn't build the print preview.")); })
         .finally(() => { if (!cancelled) setSheetBusy(false); });
@@ -100,8 +93,8 @@ export default function QuickCard() {
   useEffect(() => () => urlsToRevoke.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
   useEffect(() => {
-    listCardTypes().then((types) => {
-      const active = types.filter((t) => t.is_active);
+    api.listCardTypes().then((types) => {
+      const active = types.filter((t) => t.is_active !== false);
       setCardTypes(active);
       const aadhaar = active.find((t) => t.name.toLowerCase().includes("aadhaar"));
       setCardTypeId((aadhaar ?? active[0])?.id ?? "");
@@ -123,19 +116,12 @@ export default function QuickCard() {
     setIsBusy(true);
     setError(null);
     try {
-      let custId = customerId;
-      let docId = documentId;
-      if (!custId) {
-        const customer = await createCustomer({ name: "Quick card", mobile: mobile.trim() || "0000000000" });
-        custId = customer.id;
-        setCustomerId(custId);
+      let current = ctx;
+      if (!current) {
+        current = await api.upload({ docType: documentTypeFor(cardType), file: frontFile, back: backFile, mobile });
+        setCtx(current);
       }
-      if (!docId) {
-        const doc = await uploadDocument(custId, documentTypeFor(cardType), frontFile, backFile);
-        docId = doc.id;
-        setDocumentId(docId);
-      }
-      const details = await processDocument(docId, { password: password || undefined, englishToTelugu: true });
+      const details = await api.process(current, password);
       const read: Fields = {
         name: details.name ?? "", name_local: details.name_local ?? "", dob: details.dob ?? "",
         gender: details.gender ?? "", address: details.address ?? "", address_local: details.address_local ?? "",
@@ -144,13 +130,8 @@ export default function QuickCard() {
       };
       setFields(read);
       setNeedsPassword(false);
-      const nm = (read.name ?? "").trim();
-      if (nm) {
-        await updateCustomer(custId, { name: nm, address: read.address || undefined });
-      }
       if (cardTypeId) {
-        const all = await listTemplates(cardTypeId);
-        const active = all.filter((t) => t.is_active);
+        const active = await api.listTemplates(cardTypeId);
         setTemplates(active);
         if (!templateId && active.length > 0) setTemplateId(active[0].id);
       }
@@ -169,11 +150,11 @@ export default function QuickCard() {
   }
 
   async function buildPreview(): Promise<boolean> {
-    if (!customerId || !templateId || !selectedTemplate) return false;
+    if (!ctx || !templateId || !selectedTemplate) return false;
     try {
       const [front, back] = await Promise.all([
-        previewCard(customerId, templateId, "front"),
-        templateHasBackSide(selectedTemplate) ? previewCard(customerId, templateId, "back") : Promise.resolve(null),
+        api.preview(ctx, templateId, "front"),
+        templateHasBackSide(selectedTemplate) ? api.preview(ctx, templateId, "back") : Promise.resolve(null),
       ]);
       urlsToRevoke.current.push(front, ...(back ? [back] : []));
       setPreviewUrl(front);
@@ -196,11 +177,11 @@ export default function QuickCard() {
   }
 
   async function handleGenerate() {
-    if (!customerId || !templateId) return;
+    if (!ctx || !templateId || !cardTypeId) return;
     setIsBusy(true);
     setError(null);
     try {
-      setCard(await generateCard(customerId, templateId));
+      setCard(await api.generate(ctx, templateId, cardTypeId));
     } catch (err) {
       setError(errorMessage(err, "Couldn't generate that card."));
     } finally {
@@ -212,9 +193,9 @@ export default function QuickCard() {
     if (!card) return;
     setBucketState("adding");
     try {
-      await addToBucket(card.id);
+      await api.addToBucket(card.id);
       setBucketState("added");
-      refreshBucketCount();
+      refreshBucketCount?.();
     } catch (err) {
       setBucketState("idle");
       setError(errorMessage(err, "Couldn't add to the print bucket."));
@@ -223,7 +204,7 @@ export default function QuickCard() {
 
   function startOver() {
     setStep(S.CREATE); setError(null); setFrontFile(null); setBackFile(null); setPassword(""); setNeedsPassword(false);
-    setCustomerId(null); setDocumentId(null); setFields(null); setPreviewUrl(null);
+    setCtx(null); setFields(null); setPreviewUrl(null);
     setBackPreviewUrl(null); setCard(null); setBucketState("idle"); setMobile("");
   }
 
@@ -257,10 +238,12 @@ export default function QuickCard() {
                 ))}
               </select>
             </div>
-            <div className="field">
-              <label htmlFor="q-mobile">Customer mobile (optional)</label>
-              <input id="q-mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="numeric" />
-            </div>
+            {api.showMobile && (
+              <div className="field">
+                <label htmlFor="q-mobile">Customer mobile (optional)</label>
+                <input id="q-mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="numeric" />
+              </div>
+            )}
             <button className="btn btn-primary" disabled={!cardTypeId} onClick={handleStart}>Start</button>
           </aside>
           <section className="qc-main">
@@ -372,6 +355,7 @@ export default function QuickCard() {
         <div className="card-panel wizard-panel wizard-panel-success">
           <h2 style={{ marginTop: 0 }}>Generate card</h2>
           <p className="dashboard-subtitle">{fields?.name} · {selectedTemplate?.name}</p>
+          {api.mode === "member" && <p className="field-hint">Generating this card uses 1 credit. Layouts, downloads and printing afterwards are free.</p>}
           <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
             <button className="btn btn-secondary" onClick={() => setStep(S.PREVIEW)} disabled={isBusy}>Back</button>
             <button className="btn btn-primary" onClick={handleGenerate} disabled={isBusy}>
@@ -418,14 +402,14 @@ export default function QuickCard() {
               <input id="p-gap" type="range" min={0} max={12} step={0.5} value={printOpts.gap_mm} onChange={(e) => setOpt("gap_mm", Number(e.target.value))} />
             </div>
             <p className="field-hint">Paper: {layoutInfo.paper}</p>
-            <button className="btn btn-primary" onClick={() => downloadPrintSheet(card.id, printOpts, `${fields?.name ?? "card"}-${printOpts.layout}`).catch((e) => setError(errorMessage(e, "Couldn't download the PDF.")))}>Download PDF</button>
-            <button className="btn btn-secondary" onClick={() => openPrintSheet(card.id, printOpts).catch((e) => setError(errorMessage(e, "Couldn't open the PDF.")))}>Print now</button>
+            <button className="btn btn-primary" onClick={() => api.sheetPdf(card.id, printOpts, `${fields?.name ?? "card"}-${printOpts.layout}`).catch((e) => setError(errorMessage(e, "Couldn't download the PDF.")))}>Download PDF</button>
+            <button className="btn btn-secondary" onClick={() => api.sheetOpen(card.id, printOpts).catch((e) => setError(errorMessage(e, "Couldn't open the PDF.")))}>Print now</button>
             <hr className="qc-rule" />
             <div className="qc-toggle-row">
-              <button className="btn btn-ghost btn-sm" onClick={() => downloadCard(card.id, "png", `${fields?.name ?? "card"}`)}>PNG</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => downloadCard(card.id, "jpg", `${fields?.name ?? "card"}`)}>JPG</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => api.download(card.id, `${fields?.name ?? "card"}`, "png")}>PNG</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => api.download(card.id, `${fields?.name ?? "card"}`, "jpg")}>JPG</button>
               {bucketState === "added" ? (
-                <Link to="/print-bucket" className="btn btn-ghost btn-sm">In bucket</Link>
+                <Link to={api.bucketPath} className="btn btn-ghost btn-sm">In bucket</Link>
               ) : (
                 <button className="btn btn-ghost btn-sm" onClick={handleAddToBucket} disabled={bucketState === "adding"}>Add to bucket</button>
               )}

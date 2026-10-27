@@ -144,15 +144,12 @@ class PrintSheetRequest(BaseModel):
     copies: int = Field(default=1, ge=1, le=10)
 
 
-def _sheet_pages(card_id: str, payload: PrintSheetRequest, db: Session):
+def build_sheet_pages(card, payload: PrintSheetRequest):
+    """Shared by the staff and member routers (each does its own access check)."""
     from app.services import print_layouts as pl
 
     if payload.layout not in pl.LAYOUTS:
         raise HTTPException(status_code=400, detail="Unknown print layout")
-    try:
-        card = CardGenerationService(db).get(card_id)
-    except GeneratedCardNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Generated card not found") from exc
     if not card.png_path or not _resolve_generated_path(card.png_path).exists():
         raise HTTPException(status_code=404, detail="Card image is missing")
     front = Image.open(_resolve_generated_path(card.png_path))
@@ -162,9 +159,7 @@ def _sheet_pages(card_id: str, payload: PrintSheetRequest, db: Session):
     return pl.build_pages(front, back, pl.Options(**payload.model_dump()))
 
 
-@router.post("/{card_id}/print-sheet/preview")
-def print_sheet_preview(card_id: str, payload: PrintSheetRequest, db: Session = Depends(get_db)):
-    pages = _sheet_pages(card_id, payload, db)
+def pages_to_previews(pages) -> list[str]:
     out = []
     for page in pages:
         small = page.copy()
@@ -172,7 +167,20 @@ def print_sheet_preview(card_id: str, payload: PrintSheetRequest, db: Session = 
         buf = io.BytesIO()
         small.save(buf, format="JPEG", quality=80)
         out.append("data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode())
-    return {"pages": out}
+    return out
+
+
+def _sheet_pages(card_id: str, payload: PrintSheetRequest, db: Session):
+    try:
+        card = CardGenerationService(db).get(card_id)
+    except GeneratedCardNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Generated card not found") from exc
+    return build_sheet_pages(card, payload)
+
+
+@router.post("/{card_id}/print-sheet/preview")
+def print_sheet_preview(card_id: str, payload: PrintSheetRequest, db: Session = Depends(get_db)):
+    return {"pages": pages_to_previews(_sheet_pages(card_id, payload, db))}
 
 
 @router.post("/{card_id}/print-sheet/pdf")

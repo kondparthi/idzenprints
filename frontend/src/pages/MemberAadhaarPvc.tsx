@@ -1,5 +1,6 @@
-import CardGenerationWizard from "./CardGenerationWizard";
+import QuickCard from "./QuickCard";
+import { memberQuickApi } from "@/api/quickCardApi";
 
 export default function MemberAadhaarPvc() {
-  return <CardGenerationWizard documentType="aadhaar" cardTypeName="Aadhaar PVC" title="Aadhaar PVC Card" />;
+  return <QuickCard api={memberQuickApi} />;
 }

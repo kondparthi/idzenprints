@@ -34,6 +34,7 @@ from app.services.card_generation_service import CardGenerationService, Customer
 from app.services.document_service import DocumentNotFoundError, DocumentService
 from app.services.ocr.tesseract_provider import PdfPasswordRequiredError
 from app.config.settings import get_settings
+from app.routers.cards import PrintSheetRequest, build_sheet_pages, pages_to_previews
 from pathlib import Path
 
 router = APIRouter(prefix="/api/auth/member/cards", tags=["member-cards"], dependencies=[Depends(get_current_member)])
@@ -221,3 +222,34 @@ def download_card(
     if not path.exists():
         raise HTTPException(status_code=404, detail="File is missing on disk")
     return FileResponse(path, media_type=_FORMAT_MEDIA_TYPES[format], filename=path.name)
+
+
+@router.post("/{card_id}/print-sheet/preview")
+def print_sheet_preview(
+    card_id: str,
+    payload: PrintSheetRequest,
+    current_member: Member = Depends(get_current_member),
+    db: Session = Depends(get_db),
+):
+    """Layout preview for a card the member already generated (and paid
+    for) — re-laying-out the same card costs nothing extra."""
+    card = _assert_owns_card(card_id, current_member, db)
+    return {"pages": pages_to_previews(build_sheet_pages(card, payload))}
+
+
+@router.post("/{card_id}/print-sheet/pdf")
+def print_sheet_pdf(
+    card_id: str,
+    payload: PrintSheetRequest,
+    current_member: Member = Depends(get_current_member),
+    db: Session = Depends(get_db),
+):
+    from app.services import print_layouts as pl
+
+    card = _assert_owns_card(card_id, current_member, db)
+    pdf = pl.to_pdf(build_sheet_pages(card, payload))
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="print-{payload.layout}.pdf"'},
+    )

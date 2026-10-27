@@ -26,7 +26,15 @@ next increment if exact font fidelity becomes a requirement.
 import re
 from pathlib import Path
 
-from PIL import ImageFont
+import logging
+
+from PIL import ImageFont, features
+
+if not features.check("raqm"):
+    logging.getLogger(__name__).warning(
+        "Pillow was built without libraqm/FriBiDi: Telugu/Hindi text will render with broken "
+        "letter shapes. Install it with: apt install libraqm0 libfribidi0"
+    )
 
 _FONTS_DIR = Path(__file__).resolve().parents[2] / "assets" / "fonts"
 
