@@ -1,6 +1,12 @@
 """
 Live preview (nothing persisted) and PDF/PNG/JPG generation + download.
 """
+import base64
+import io
+from typing import Literal
+
+from PIL import Image
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
@@ -123,3 +129,55 @@ def download_card(
         raise HTTPException(status_code=404, detail="Stored file is missing")
 
     return FileResponse(path, media_type=_FORMAT_MEDIA_TYPES[format], filename=path.name)
+
+
+class PrintSheetRequest(BaseModel):
+    layout: str = "a4_5_cards"
+    side: Literal["both", "front", "back"] = "both"
+    border: bool = False
+    mirror: bool = False
+    gap_mm: float = Field(default=4.0, ge=0, le=30)
+    dx_mm: float = Field(default=0.0, ge=-40, le=40)
+    dy_mm: float = Field(default=0.0, ge=-40, le=40)
+    zoom: float = Field(default=100.0, ge=50, le=150)
+    rotation: float = Field(default=0.0, ge=-180, le=180)
+    copies: int = Field(default=1, ge=1, le=10)
+
+
+def _sheet_pages(card_id: str, payload: PrintSheetRequest, db: Session):
+    from app.services import print_layouts as pl
+
+    if payload.layout not in pl.LAYOUTS:
+        raise HTTPException(status_code=400, detail="Unknown print layout")
+    try:
+        card = CardGenerationService(db).get(card_id)
+    except GeneratedCardNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Generated card not found") from exc
+    if not card.png_path or not _resolve_generated_path(card.png_path).exists():
+        raise HTTPException(status_code=404, detail="Card image is missing")
+    front = Image.open(_resolve_generated_path(card.png_path))
+    back = None
+    if card.back_png_path and _resolve_generated_path(card.back_png_path).exists():
+        back = Image.open(_resolve_generated_path(card.back_png_path))
+    return pl.build_pages(front, back, pl.Options(**payload.model_dump()))
+
+
+@router.post("/{card_id}/print-sheet/preview")
+def print_sheet_preview(card_id: str, payload: PrintSheetRequest, db: Session = Depends(get_db)):
+    pages = _sheet_pages(card_id, payload, db)
+    out = []
+    for page in pages:
+        small = page.copy()
+        small.thumbnail((1100, 1100))
+        buf = io.BytesIO()
+        small.save(buf, format="JPEG", quality=80)
+        out.append("data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode())
+    return {"pages": out}
+
+
+@router.post("/{card_id}/print-sheet/pdf")
+def print_sheet_pdf(card_id: str, payload: PrintSheetRequest, db: Session = Depends(get_db)):
+    from app.services import print_layouts as pl
+
+    pdf = pl.to_pdf(_sheet_pages(card_id, payload, db))
+    return Response(content=pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="print-{payload.layout}.pdf"'})
