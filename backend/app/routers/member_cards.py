@@ -157,7 +157,7 @@ def preview_card(
 ):
     customer = _assert_owns_document(document_id, current_member, db).customer_id
     try:
-        png_bytes = CardGenerationService(db).preview_png_bytes(customer, template_id, side=side)
+        png_bytes = CardGenerationService(db).preview_png_bytes(customer, template_id, side=side, document_id=document_id)
     except (CustomerNotFoundError, TemplateNotFoundError) as exc:
         raise HTTPException(status_code=404, detail="Couldn't build a preview — check the template") from exc
     return Response(content=png_bytes, media_type="image/png")
@@ -185,7 +185,7 @@ def generate_card(
         raise HTTPException(status_code=403, detail={"message": str(exc), "reason_code": "access_denied"}) from exc
 
     try:
-        card = CardGenerationService(db).generate(document.customer_id, template_id, created_by=None)
+        card = CardGenerationService(db).generate(document.customer_id, template_id, created_by=None, document_id=document_id)
     except (CustomerNotFoundError, TemplateNotFoundError) as exc:
         raise HTTPException(status_code=404, detail="Couldn't generate that card — check the template") from exc
 

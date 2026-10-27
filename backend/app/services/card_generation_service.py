@@ -4,6 +4,7 @@ renderer, and either hands back in-memory PNG bytes (preview — nothing
 saved) or writes PDF/PNG/JPG to disk and records a GeneratedCard (generate).
 """
 import io
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -62,6 +63,16 @@ class CardGenerationService:
             raise TemplateNotFoundError(template_id)
         return customer, template
 
+    def _details_for(self, customer_id: str, document_id: Optional[str] = None) -> Optional[CustomerDetails]:
+        """The details to print. A member has ONE implicit customer with
+        many uploaded documents, so when a document is given its own
+        details are used — never a different document's."""
+        if document_id:
+            found = self.details_repo.get_by_document_id(document_id)
+            if found and found.customer_id == customer_id:
+                return found
+        return self._latest_verified_details(customer_id)
+
     def _latest_verified_details(self, customer_id: str) -> Optional[CustomerDetails]:
         all_details = self.details_repo.list_for_customer(customer_id)
         verified = [d for d in all_details if d.is_verified]
@@ -117,10 +128,14 @@ class CardGenerationService:
         return bool(template.back_background_path) or bool(template.back_elements)
 
     def _render(
-        self, customer: Customer, template: Template, field_image_overrides: Optional[FieldImageOverrides] = None
+        self,
+        customer: Customer,
+        template: Template,
+        field_image_overrides: Optional[FieldImageOverrides] = None,
+        document_id: Optional[str] = None,
     ) -> tuple[Image.Image, Optional[Image.Image]]:
         """Renders the front, and the back too when the template has one."""
-        details = self._latest_verified_details(customer.id)
+        details = self._details_for(customer.id, document_id)
         data = resolve_card_variables(customer, details)
 
         customer_photo_path: Optional[Path] = None
@@ -157,9 +172,10 @@ class CardGenerationService:
         template_id: str,
         side: str = "front",
         field_image_overrides: Optional[FieldImageOverrides] = None,
+        document_id: Optional[str] = None,
     ) -> bytes:
         customer, template = self._load_customer_and_template(customer_id, template_id)
-        front, back = self._render(customer, template, field_image_overrides)
+        front, back = self._render(customer, template, field_image_overrides, document_id)
         image = back if (side == "back" and back is not None) else front
         buffer = io.BytesIO()
         image.convert("RGB").save(buffer, format="PNG")
@@ -204,15 +220,18 @@ class CardGenerationService:
         created_by: Optional[str],
         order_id: Optional[str] = None,
         field_image_overrides: Optional[FieldImageOverrides] = None,
+        document_id: Optional[str] = None,
     ) -> GeneratedCard:
         customer, template = self._load_customer_and_template(customer_id, template_id)
-        front, back = self._render(customer, template, field_image_overrides)
+        front, back = self._render(customer, template, field_image_overrides, document_id)
         rgb_front = front.convert("RGB")
         rgb_back = back.convert("RGB") if back is not None else None
 
         output_dir = Path(settings.GENERATED_DIR) / customer_id
         output_dir.mkdir(parents=True, exist_ok=True)
-        stem = f"{template_id}_{customer_id}"
+        # Unique per card: a member has one customer and many cards, and a
+        # shared name would overwrite their earlier cards' files.
+        stem = f"{template_id}_{customer_id}_{uuid.uuid4().hex[:8]}"
 
         png_relative = f"{customer_id}/{stem}.png"
         jpg_relative = f"{customer_id}/{stem}.jpg"
