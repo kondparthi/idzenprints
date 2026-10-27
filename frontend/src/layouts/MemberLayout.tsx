@@ -39,38 +39,17 @@ export default function MemberLayout() {
     .toUpperCase();
 
   return (
-    <div className="app-shell">
-      <aside className="app-sidebar">
-        <div className="app-sidebar-brand">
-          <img src={idzenIcon} alt="IDZEN" className="app-sidebar-logo-mark" />
-          IDZEN
-        </div>
-        <nav className="app-nav member-nav">
-          {MEMBER_SIDEBAR.map((section, idx) => (
-            <div key={idx} className="member-nav-section">
-              {section.heading && <span className="member-nav-section-heading">{section.heading}</span>}
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.slug}
-                  to={item.route ?? `/member/section/${item.slug}`}
-                  end={Boolean(item.route)}
-                  className={({ isActive }) => "app-nav-link" + (isActive ? " active" : "")}
-                >
-                  <NavIcon name={item.icon} />
-                  {item.label}
-                  {item.badge === "new" && <span className="member-nav-badge">NEW</span>}
-                </NavLink>
-              ))}
-            </div>
-          ))}
-        </nav>
-      </aside>
+    <div className="app-shell member-shell">
       <div className="app-main">
         <header className="app-topbar member-topbar">
+          <div className="member-brand">
+            <img src={idzenIcon} alt="IDZEN" className="member-brand-mark" />
+            IDZEN
+          </div>
           <div className="member-topbar-marquee">
             <span className="member-topbar-marquee-track">
-              Welcome to IDZEN Prints — free registration, real credits, real cards. Explore Govt. Services, Print
-              Services, and more from the sidebar.
+              Welcome to IDZEN Prints — free registration, real credits, real cards. Print cards, manage your
+              subscription and more from the menu below.
             </span>
           </div>
 
@@ -117,6 +96,20 @@ export default function MemberLayout() {
             </button>
           </div>
         </header>
+        <nav className="member-hnav" aria-label="Member menu">
+          {MEMBER_SIDEBAR.flatMap((section) => section.items).map((item) => (
+            <NavLink
+              key={item.slug}
+              to={item.route ?? `/member/section/${item.slug}`}
+              end={Boolean(item.route)}
+              className={({ isActive }) => "member-hnav-link" + (isActive ? " active" : "")}
+            >
+              <NavIcon name={item.icon} />
+              {item.label}
+              {item.badge === "new" && <span className="member-nav-badge">NEW</span>}
+            </NavLink>
+          ))}
+        </nav>
         <main className="app-content">
           <Outlet />
         </main>
