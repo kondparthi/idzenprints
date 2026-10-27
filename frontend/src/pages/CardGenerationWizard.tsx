@@ -3,13 +3,12 @@ import { listActiveCardTypes } from "@/api/public";
 import {
   uploadDocument,
   processDocument,
-  updateDocumentDetails,
   listTemplatesForCardType,
   previewCard,
   generateCard,
   triggerCardDownload,
 } from "@/api/memberCards";
-import type { DocumentType, CustomerDetails } from "@/types/document";
+import type { DocumentType } from "@/types/document";
 import { templateHasBackSide, type Template } from "@/types/template";
 import type { GeneratedCard } from "@/types/generatedCard";
 import { Link } from "react-router-dom";
@@ -22,7 +21,7 @@ interface CardGenerationWizardProps {
   title: string;
 }
 
-const STEPS = ["Upload", "Details", "Theme", "Preview", "Generate"];
+const STEPS = ["Upload file", "Select theme", "Preview", "Generate"];
 
 export default function CardGenerationWizard({ documentType, cardTypeName, title }: CardGenerationWizardProps) {
   const [step, setStep] = useState(0);
@@ -36,9 +35,6 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
   const [pdfPassword, setPdfPassword] = useState("");
   const [needsPassword, setNeedsPassword] = useState(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
-
-  // Step 2: bilingual details
-  const [details, setDetails] = useState<CustomerDetails | null>(null);
 
   // Step 3: theme
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -72,9 +68,13 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
         docId = doc.id;
         setDocumentId(docId);
       }
-      const extracted = await processDocument(docId, pdfPassword || undefined);
-      setDetails(extracted);
+      await processDocument(docId, pdfPassword || undefined);
       setNeedsPassword(false);
+      if (cardTypeId) {
+        const list = await listTemplatesForCardType(cardTypeId);
+        setTemplates(list);
+        if (list.length > 0) setTemplateId(list[0].id);
+      }
       setStep(1);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
@@ -85,37 +85,6 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
         const message = typeof detail === "object" ? detail?.message : detail;
         setError(message || "Couldn't upload or read that document.");
       }
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function handleSaveDetails() {
-    if (!documentId || !details) return;
-    setIsBusy(true);
-    setError(null);
-    try {
-      const saved = await updateDocumentDetails(documentId, {
-        name: details.name ?? undefined,
-        name_local: details.name_local ?? undefined,
-        dob: details.dob ?? undefined,
-        gender: details.gender ?? undefined,
-        address: details.address ?? undefined,
-        address_local: details.address_local ?? undefined,
-        document_number: details.document_number ?? undefined,
-        vid_number: details.vid_number ?? undefined,
-        issue_date: details.issue_date ?? undefined,
-        details_as_on: details.details_as_on ?? undefined,
-      });
-      setDetails(saved);
-      if (cardTypeId) {
-        const list = await listTemplatesForCardType(cardTypeId);
-        setTemplates(list);
-        if (list.length > 0) setTemplateId(list[0].id);
-      }
-      setStep(2);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || "Couldn't save those details.");
     } finally {
       setIsBusy(false);
     }
@@ -134,7 +103,7 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
       ]);
       setPreviewUrl(url);
       setBackPreviewUrl(backUrl);
-      setStep(3);
+      setStep(2);
     } catch (err: any) {
       setError(err?.response?.data?.detail || "Couldn't build a preview.");
     } finally {
@@ -149,7 +118,7 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
     try {
       const generated = await generateCard(documentId, templateId, cardTypeId);
       setCard(generated);
-      setStep(4);
+      setStep(3);
       window.dispatchEvent(new Event("idzen:credits-changed"));
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
@@ -230,66 +199,12 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
             </div>
           )}
           <button className="btn btn-primary" disabled={(!frontFile && !documentId) || isBusy} onClick={handleUpload}>
-            {isBusy ? "Uploading & reading…" : needsPassword ? "Try again" : "Upload & continue"}
+            {isBusy ? "Uploading & reading…" : needsPassword ? "Try again" : "Upload & read"}
           </button>
         </div>
       )}
 
-      {step === 1 && details && (
-        <div className="card-panel wizard-panel">
-          <h2 style={{ marginTop: 0 }}>Review the extracted details</h2>
-          <p className="dashboard-subtitle">
-            Automatic reading isn't always perfect — check and correct anything before continuing.
-          </p>
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="name">Name (English)</label>
-              <input id="name" value={details.name ?? ""} onChange={(e) => setDetails({ ...details, name: e.target.value })} />
-            </div>
-            <div className="field">
-              <label htmlFor="nameLocal">Name (regional language)</label>
-              <input id="nameLocal" value={details.name_local ?? ""} onChange={(e) => setDetails({ ...details, name_local: e.target.value })} />
-            </div>
-          </div>
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="dob">Date of birth</label>
-              <input id="dob" value={details.dob ?? ""} onChange={(e) => setDetails({ ...details, dob: e.target.value })} />
-            </div>
-            <div className="field">
-              <label htmlFor="gender">Gender</label>
-              <input id="gender" value={details.gender ?? ""} onChange={(e) => setDetails({ ...details, gender: e.target.value })} />
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="address">Address (English)</label>
-            <textarea id="address" rows={2} value={details.address ?? ""} onChange={(e) => setDetails({ ...details, address: e.target.value })} />
-          </div>
-          <div className="field">
-            <label htmlFor="addressLocal">Address (regional language)</label>
-            <textarea id="addressLocal" rows={2} value={details.address_local ?? ""} onChange={(e) => setDetails({ ...details, address_local: e.target.value })} />
-          </div>
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="docNumber">Document number</label>
-              <input id="docNumber" value={details.document_number ?? ""} onChange={(e) => setDetails({ ...details, document_number: e.target.value })} />
-            </div>
-            <div className="field">
-              <label htmlFor="issueDate">Aadhaar no. issued</label>
-              <input id="issueDate" value={details.issue_date ?? ""} onChange={(e) => setDetails({ ...details, issue_date: e.target.value })} />
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="detailsAsOn">Details as on</label>
-            <input id="detailsAsOn" value={details.details_as_on ?? ""} onChange={(e) => setDetails({ ...details, details_as_on: e.target.value })} />
-          </div>
-          <button className="btn btn-primary" disabled={isBusy} onClick={handleSaveDetails}>
-            {isBusy ? "Saving…" : "Save & choose a theme"}
-          </button>
-        </div>
-      )}
-
-      {step === 2 && (
+      {step === 1 && (
         <div className="card-panel wizard-panel">
           <h2 style={{ marginTop: 0 }}>Choose a theme</h2>
           {templates.length === 0 ? (
@@ -314,7 +229,7 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
         </div>
       )}
 
-      {step === 3 && previewUrl && (
+      {step === 2 && previewUrl && (
         <div className="card-panel wizard-panel">
           <h2 style={{ marginTop: 0 }}>Preview</h2>
           <div className="wizard-preview-sides">
@@ -330,7 +245,7 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
             )}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <button className="btn btn-secondary" onClick={() => setStep(2)}>
+            <button className="btn btn-secondary" onClick={() => setStep(1)}>
               Back to themes
             </button>
             <button className="btn btn-primary" disabled={isBusy} onClick={handleGenerate}>
@@ -340,7 +255,7 @@ export default function CardGenerationWizard({ documentType, cardTypeName, title
         </div>
       )}
 
-      {step === 4 && card && (
+      {step === 3 && card && (
         <div className="card-panel wizard-panel wizard-panel-success">
           <span className="section-placeholder-icon" style={{ margin: "0 auto var(--space-4)" }}>✓</span>
           <h2 style={{ marginTop: 0 }}>Your card is ready</h2>

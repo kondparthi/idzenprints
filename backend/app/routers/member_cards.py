@@ -87,7 +87,6 @@ def upload_document(
 
 
 @router.post("/documents/{document_id}/process", response_model=CustomerDetailsOut)
-@router.post("/documents/{document_id}/process", response_model=CustomerDetailsOut)
 def process_document(
     document_id: str,
     payload: DocumentProcessRequest | None = None,
@@ -101,7 +100,7 @@ def process_document(
     _assert_owns_document(document_id, current_member, db)
     password = payload.password if payload else None
     try:
-        return DocumentService(db).process(document_id, password=password)
+        return DocumentService(db).process(document_id, password=password, english_to_telugu=True)
     except DocumentNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Document not found") from exc
     except PdfPasswordRequiredError as exc:

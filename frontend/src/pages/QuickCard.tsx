@@ -270,7 +270,7 @@ export default function QuickCard() {
               <div className="qc-card-pane"><span className="qc-badge">BACK</span><p className="field-hint">Back side appears after you generate.</p></div>
             </div>
           </section>
-          <aside className="card-panel qc-side"><h3 className="qc-side-title">Steps</h3><p className="field-hint">Create → Upload → Validate → Theme → Preview → Edit → Generate &amp; print.</p></aside>
+          <aside className="card-panel qc-side"><h3 className="qc-side-title">Steps</h3><p className="field-hint">Create → Upload → Theme → Preview → Generate &amp; print.</p></aside>
         </div>
       )}
 

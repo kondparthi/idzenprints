@@ -89,18 +89,6 @@ export const MEMBER_SIDEBAR: SidebarSection[] = [
         icon: "video",
         description: "Step-by-step video guides for every service, in multiple languages.",
       },
-      {
-        slug: "pricing",
-        label: "Pricing",
-        icon: "tag",
-        description: "The full, up-to-date price list for every service on the platform.",
-      },
-      {
-        slug: "support",
-        label: "Support",
-        icon: "headset",
-        description: "Reach our support team by phone, WhatsApp, or a support ticket.",
-      },
     ],
   },
 ];
