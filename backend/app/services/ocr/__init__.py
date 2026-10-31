@@ -10,6 +10,11 @@ def get_ocr_provider() -> OCRProvider:
     settings = get_settings()
     provider_name = (settings.OCR_PROVIDER or "tesseract").strip().lower()
 
+    if provider_name == "claude":
+        from app.services.ocr.claude_provider import ClaudeVisionOCRProvider
+
+        return ClaudeVisionOCRProvider()
+
     if provider_name == "mock":
         from app.services.ocr.mock_provider import MockOCRProvider
 
@@ -26,3 +31,19 @@ def get_ocr_provider() -> OCRProvider:
         from app.services.ocr.mock_provider import MockOCRProvider
 
         return MockOCRProvider()
+
+
+def ocr_error_message(exc: Exception) -> str:
+    """A readable reason for the UI instead of a bare server error."""
+    name = type(exc).__name__
+    text = str(exc)
+    if name == "TesseractNotFoundError" or "tesseract is not installed" in text.lower():
+        return (
+            "Reading images isn't set up on the server yet (Tesseract is not installed). "
+            "Ask the admin to install it or switch the OCR provider to Claude."
+        )
+    if "ANTHROPIC_API_KEY" in text:
+        return "Image reading needs the Claude API key to be added on the server."
+    if name in ("HTTPStatusError", "ConnectError", "ReadTimeout", "ConnectTimeout"):
+        return "The image-reading service didn't respond. Please try again in a moment."
+    return "Couldn't read that file. Please use a clearer image or PDF."

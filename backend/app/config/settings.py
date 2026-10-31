@@ -37,7 +37,10 @@ class Settings(BaseSettings):
     TELUGU_MODEL: str = "claude-sonnet-5-5"
 
     # OCR (used from Phase 2 onward)
+    # "" / "tesseract" (local), "mock", or "claude" (images are read by the
+    # Claude vision API using ANTHROPIC_API_KEY; PDFs stay local).
     OCR_PROVIDER: str = ""
+    OCR_MODEL: str = "claude-sonnet-5-5"
     OCR_API_KEY: str = ""
     # Explicit path to the tesseract binary (e.g. tesseract.exe on Windows).
     # Only needed if it's not on PATH and not at one of the default install

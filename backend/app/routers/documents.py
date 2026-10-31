@@ -15,6 +15,7 @@ from app.schemas.common import PaginatedResponse
 from app.schemas.customer_details import CustomerDetailsOut
 from app.schemas.document import DocumentOut, DocumentProcessRequest
 from app.services.document_service import DocumentNotFoundError, DocumentService
+from app.services.ocr import ocr_error_message
 from app.services.ocr.tesseract_provider import PdfPasswordRequiredError
 from app.utils.audit import record as record_audit
 from app.utils.file_storage import resolve_stored_path
@@ -112,4 +113,4 @@ def process_document(document_id: str, payload: DocumentProcessRequest | None = 
             detail={"message": "This PDF is password-protected.", "reason_code": "pdf_password_required"},
         ) from exc
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=422, detail=f"OCR processing failed: {exc}") from exc
+        raise HTTPException(status_code=422, detail=ocr_error_message(exc)) from exc

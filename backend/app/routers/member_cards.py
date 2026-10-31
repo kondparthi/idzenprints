@@ -32,6 +32,7 @@ from app.schemas.template import TemplateOut
 from app.services.access_control_service import AccessControlService, AccessDeniedError
 from app.services.card_generation_service import CardGenerationService, CustomerNotFoundError, TemplateNotFoundError
 from app.services.document_service import DocumentNotFoundError, DocumentService
+from app.services.ocr import ocr_error_message
 from app.services.ocr.tesseract_provider import PdfPasswordRequiredError
 from app.config.settings import get_settings
 from app.routers.cards import PrintSheetRequest, build_sheet_pages, pages_to_previews
@@ -109,6 +110,11 @@ def process_document(
             status_code=422,
             detail={"message": "This PDF is password-protected.", "reason_code": "pdf_password_required"},
         ) from exc
+    except Exception as exc:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).exception("Member OCR failed for %s", document_id)
+        raise HTTPException(status_code=422, detail=ocr_error_message(exc)) from exc
 
 
 @router.get("/documents/{document_id}/details", response_model=CustomerDetailsOut)
